@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title></title>
+  <link rel="stylesheet" type="text/css" href="main.css">
+  <script defer src="../shared/app.js"></script>
+  <script defer src="main.js"></script>
+</head>
+<body>
+<div id="overlay" class="overlay"></div>
+<div id="webviews" class="webviews">
+  <header id="windowbar" class="windowbar">
+    <div class="location">Daring Fireball</div>
+    <div id="tabs-button" class="tabs-button">7</div>
+  </header>
+  <iframe sandbox id="webview0" class="webview webview-current" src="http://daringfireball.net"></iframe>
+  <iframe sandbox id="webview1" class="webview" src="http://ben-evans.com"></iframe>
+  <iframe sandbox id="webview2" class="webview" src="http://breakingsmart.com/season-1/"></iframe>
+</div>
+<div id="sidebar" class="sidebar">
+  <ul id="tabs" class="tabs">
+    <li data-webview="webview0"><div class="favicon"></div> Daring Fireball</li>
+    <li data-webview="webview1"><div class="favicon"></div> Ben Evans</li>
+    <li data-webview="webview2"><div class="favicon"></div> How software is eating the world</li>
+    <li><div class="favicon"></div> Pinterest: Discover and save creative ideas</li>
+    <li><div class="favicon"></div> The Rust Programming Language / Reddit</li>
+    <li><div class="favicon"></div> Amazon.com: Online Shopping for Electronics, Apparel, Computers, Books, DVDs &amp; more</li>
+    <li><div class="favicon"></div> Netflix - Watch TV Shows Online, Watch Movies Online</li>
+  </ul>  
+</div>
+</body>
+</html>
