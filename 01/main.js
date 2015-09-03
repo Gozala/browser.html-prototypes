@@ -37,10 +37,6 @@ const keyboard = (msg, send) => {
 };
 
 const Overlay = {};
-
-Overlay.write = (el, state) =>
-  toggleClass(el, 'overlay-active', state.mode === 'show-tabs');
-
 Overlay.service = (msg, send) => {
   if (msg.type === 'mousedown' && msg.target.id === 'overlay') {
     send(ChangeMode('show-webview'));
@@ -61,20 +57,28 @@ Pointer.update = (state, msg) =>
 const Mode = (mode) => touch({mode});
 
 Mode.update = (state, msg) =>
-  msg.type === 'change-mode' ?
+  msg.type === 'change-mode' && msg.mode !== state.mode ?
     Mode(msg.mode) :
+  msg.type === 'esc' && state.mode === 'show-search' ?
+    Mode('show-webview') :
   msg.type === 'esc' && state.mode === 'show-tabs' ?
     Mode('show-webview') :
   msg.type === 'esc' && state.mode === 'show-webview' ?
     Mode('show-tabs') :
   state;
 
-Mode.write = (el, state) =>
-  toggleClass(el, 'js-show-tabs', state.mode === 'show-tabs');
+Mode.write = (el, state) => {
+  toggleClass(el, 'mode-show-tabs', state.mode === 'show-tabs');
+  toggleClass(el, 'mode-show-search', state.mode === 'show-search');
+}
 
 Mode.service = (msg, send) => {
   if (msg.type === 'mousedown' && msg.target.id === 'tabs-button') {
     send(ChangeMode('show-tabs'));
+  }
+
+  if (msg.type === 'mousedown' && msg.target.id === 'location') {
+    send(ChangeMode('show-search'));
   }
 
   if (msg.type === 'change-webview') {
@@ -102,7 +106,7 @@ Webviews.update = (state, msg) =>
 
 Webviews.write = (webviews, state, send) => {
   sets(toggleClass, webviews.children, 'webview-current', false);
-  toggleClass(_(state.current), 'webview-current', true);
+  toggleClass(_(state.webviews.current), 'webview-current', true);
 };
 
 Webviews.service = (msg, send) => {
@@ -126,10 +130,9 @@ State.update = (state, msg) => {
 }
 
 State.write = (state, send) => {
-  commit(Overlay.write, _('overlay'), state.mode, send);
   commit(Mode.write, $$('body'), state.mode, send);
   commit(writeSidebar, _('sidebar'), state.mode, send);
-  commit(Webviews.write, _('webviews'), state.webviews, send);
+  commit(Webviews.write, _('webviews'), state, send);
 };
 
 const app = App(State(), State.update, State.write);
@@ -139,5 +142,5 @@ const send = Bus(service);
 window.addEventListener('keyup', send);
 window.addEventListener('mousedown', send);
 window.addEventListener('mouseup', send);
-window.addEventListener('mousemove', send);
+// window.addEventListener('mousemove', send);
 // window.addEventListener('transitionend', send);
