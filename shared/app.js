@@ -48,8 +48,12 @@ const branch = (step, tree, key, msg) => {
   return tree;
 };
 
-// @TODO instead of `branch`, I should create a `cursor` function that knows
-// how to mark the parent(s) dirty if child is updated.
+const Cursor = (update, key) => (tree, msg) => branch(update, tree, key, msg);
+
+const Update = (...update) => (state, msg) => {
+  for (var i = 0; i < update.length; i++) state = update[i](state, msg);
+  return state;
+};
 
 // Write to element only if modified time doesn't match.
 const commit = (write, element, state, ...rest) => {
@@ -59,40 +63,48 @@ const commit = (write, element, state, ...rest) => {
   }
 };
 
-const Widget = (widget) => (parent) => (state, ...rest) => {
+const mountTo = (child, parent) => {
+  parent.appendChild(child);
+  return child;
+}
+
+const Widget = (widget, parent, id) => (state, ...rest) => {
   if (!state) {
     // You can define a custom remove function. The default is simply
     // to remove the element from the DOM.
     const remove = widget.remove || Widget.remove;
-    remove(parent, element);
+    remove(element);
   } else {
-    // You can define a custom find function. The default is to look for an
-    // element via the `id` field of `state`.
-    const find = widget.find || Widget.find;
-    const element = find(state) || widget.create(parent, state, ...rest);
+    // We look for the element. If we don't find it, we create and mount it.
+    const element =
+      Widget.find(id) || mountTo(widget.create(id, state, ...rest), parent);
     commit(widget.write, element, state, ...rest);
   }
 };
 
-Widget.find = (state) => document.getElementById(state.id);
-Widget.remove = (parent, element) => element.remove();
+Widget.find = (id) => document.getElementById(id);
+Widget.remove = (element) => element.remove();
 
-// Create a stateful receive function that will schedule animation frames for
-// `write` whenever `state` is modified.
+const Render = () => ({type: 'render'});
+
+// Creates stateful services that knows how to schedule writes to DOM
+// based on render request messages.
 const App = (state, update, write) => {
-  var isFrameScheduled = false;
+  var isScheduled = false;
   return (msg, send) => {
-    const lastModified = modified(state);
-    state = update(state, msg);
-    // If state has been modified, schedule an animation frame.
-    // Make sure we schedule only if don't have one scheduled already.
-    // This way we batch writes.
-    if (modified(state) > lastModified && !isFrameScheduled) {
-      isFrameScheduled = true;
-      requestAnimationFrame(t => {
+    if (msg.type === 'render' && !isScheduled) {
+      isScheduled = true;
+      requestAnimationFrame(() => {
         write(state, send);
-        isFrameScheduled = false;
+        // Unblock scheduler.
+        isScheduled = false;
       });
+    } else {
+      const lastModified = modified(state);
+      state = update(state, msg);
+      // If state has been modified, schedule an animation frame.
+      if (modified(state) > lastModified) send(Render());
     }
   };
 };
+
