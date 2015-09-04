@@ -28,11 +28,14 @@ const Fwd = (...mailboxes) => (msg, send) => {
   };
 };
 
-// Set a modified time on an object.
-const touch = (object) => {
-  object['modified@touch'] = performance.now();
+// Set a value on an object, returning object.
+const set = (object, key, value) => {
+  object[key] = value;
   return object;
 }
+
+// Set a modified time on an object.
+const touch = (object) => set(object, 'modified@touch', performance.now());
 
 // Get a modified time from an object
 const modified = (object) => object['modified@touch'] || 0;
@@ -63,27 +66,22 @@ const commit = (write, element, state, ...rest) => {
   }
 };
 
-const mountTo = (child, parent) => {
-  parent.appendChild(child);
-  return child;
-}
+const mounted = (element, isMounted) =>
+  set(element, 'mounted@widget', isMounted);
+const isMounted = (element) => !!element['mounted@widget'];
 
-const Widget = (widget, parent, id) => (state, ...rest) => {
+const Widget = (widget, element) => (state, ...rest) => {
   if (!state) {
-    // You can define a custom remove function. The default is simply
-    // to remove the element from the DOM.
-    const remove = widget.remove || Widget.remove;
-    remove(element);
+    widget.unmount(element);
+    mounted(element, false);
+  } else if (!isMounted(element)) {
+    widget.mount(element, state, ...rest);
+    mounted(element, true);
+    commit(widget.write, element, state, ...rest);
   } else {
-    // We look for the element. If we don't find it, we create and mount it.
-    const element =
-      Widget.find(id) || mountTo(widget.create(id, state, ...rest), parent);
     commit(widget.write, element, state, ...rest);
   }
 };
-
-Widget.find = (id) => document.getElementById(id);
-Widget.remove = (element) => element.remove();
 
 const Render = () => ({type: 'render'});
 
@@ -108,3 +106,5 @@ const App = (state, update, write) => {
   };
 };
 
+// @TODO bus and app might be better expressed as a single class.
+// App is stateful, after all.
