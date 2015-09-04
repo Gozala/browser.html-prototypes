@@ -1,14 +1,3 @@
-const _ = id => document.getElementById(id);
-const $$ = (selector) => document.querySelector(selector);
-
-// Apply a side effect to `n` items.
-const sets = (f, n, ...rest) => {
-  for (var i = 0; i < n.length; i++) f(n[i], ...rest);
-}
-
-const toggleClass = (el, classname, isAdding) =>
-  isAdding ? el.classList.add(classname) : el.classList.remove(classname);
-
 // Assign a transition to an element
 const transition = (el, property, duration, easing, delay) =>
   Object.assign(el.style, {
@@ -110,9 +99,8 @@ Webviews.write = (webviews, state, send) => {
 };
 
 Webviews.service = (msg, send) => {
-  const target = msg.target;
-  if (msg.type === 'mousedown' && target && target.dataset.webview) {
-    send(ChangeWebview(target.dataset.webview));
+  if (msg.type === 'mousedown' && msg.target.dataset.webview) {
+    send(ChangeWebview(msg.target.dataset.webview));
   }
 }
 

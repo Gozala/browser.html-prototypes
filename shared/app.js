@@ -48,6 +48,9 @@ const branch = (step, tree, key, msg) => {
   return tree;
 };
 
+// @TODO instead of `branch`, I should create a `cursor` function that knows
+// how to mark the parent(s) dirty if child is updated.
+
 // Write to element only if modified time doesn't match.
 const commit = (write, element, state, ...rest) => {
   if (modified(state) > modified(element)) {
