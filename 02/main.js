@@ -2,10 +2,10 @@ const cssTranslate = (x, y, z) => `translate3d(${x}px, ${y}px, ${z}px)`;
 const log = (m) => console.log(m);
 
 // Events
-const Preview = (index) => ({type: 'preview', index});
-const RestPreviews = (index) => ({type: 'rest-previews', index: '@selected'});
+const Preview = (index) => ({type: 'preview', index: Number(index)});
+const RestPreviews = (index) => ({type: 'rest-previews'});
 const ChangeMode = (mode) => ({type: 'change-mode', mode});
-const ChangeWebview = (index) => ({type: 'change-webview', index});
+const ChangeWebview = (index) => ({type: 'change-webview', index: Number(index)});
 const EscKey = () => ({type: 'esc'});
 
 const keyboardService = (msg, send) => {
@@ -31,18 +31,16 @@ Tabs.createTab = (webview, i) => {
   return li;
 };
 
-Tabs.create = (id, state) => {
-  const tabsEl = document.createElement('ul')
-  tabsEl.id = id;
-  tabsEl.className = 'tabs';
-  return children(tabsEl, state.items.map(Tabs.createTab));
+Tabs.mount = (tabsEl, state) => {
+  children(tabsEl, state.items.map(Tabs.createTab));
 };
 
 Tabs.write = (tabsEl, state) => {
+  console.log(state);
   selectClass(tabsEl.children, 'tab-selected', state.cursor);
 };
 
-Tabs.widget = Widget(Tabs, _('sidebar'), 'tabs');
+Tabs.widget = Widget(Tabs, _('tabs'));
 
 const Overlay = {};
 Overlay.service = (msg, send) => {
@@ -98,20 +96,17 @@ Webviews.update = Cursor((state, msg) =>
   msg.type === 'preview' ?
     modify(state, {cursor: msg.index, resting: false}) :
   msg.type === 'rest-previews' ?
+    modify(state, {resting: true}) :
+  msg.type === 'esc' ?
     modify(state, {cursor: state.selected, resting: true}) :
   state, 'webviews');
 
-Webviews.create = (id, state) => {
-  const el = document.createElement('div');
-  el.id = id;
-  el.className = 'webviews';
-  return children(el, state.webviews.items.map(Webview.create));
+Webviews.mount = (el, state) => {
+  children(el, state.webviews.items.map(Webview.create));
 };
 
 Webviews.write = (webviews, state, send) => {
-  const i = state.mode.mode === 'show-tabs' ?
-    state.webviews.cursor :
-    state.webviews.selected;
+  const i = state.webviews.cursor;
 
   const offset = (-1 * webviews.children[i].offsetTop);
 
@@ -126,7 +121,7 @@ Webviews.write = (webviews, state, send) => {
   }
 };
 
-Webviews.widget = Widget(Webviews, $$('body'), 'webviews');
+Webviews.widget = Widget(Webviews, _('webviews'));
 
 Webviews.service = (msg, send) => {
   if (msg.type === 'mousedown' && msg.target.dataset.webviewIndex) {
@@ -135,9 +130,6 @@ Webviews.service = (msg, send) => {
   else if (msg.type === 'mouseover' && msg.target.dataset.webviewIndex) {
     send(Preview(msg.target.dataset.webviewIndex));
   }
-  else if (msg.type === 'mouseout' && msg.target.id === 'sidebar') {
-    send(RestPreviews());
-  }
 }
 
 const State = () => touch({
@@ -145,7 +137,8 @@ const State = () => touch({
   webviews: Webviews(0, 0, true, [
     Webview('http://breakingsmart.com/season-1/', 'How software is eating the world'),
     Webview('http://ben-evans.com', 'Ben Evans'),
-    Webview('http://notcot.org', 'NOTCOT.ORG')
+    Webview('http://en.wikipedia.org', 'Wikipedia'),
+    Webview('http://breakingsmart.com/season-1/the-future-in-the-rear-view-mirror/', 'The future in a rear-view mirror')
   ])
 });
 
@@ -163,6 +156,7 @@ const send = Bus(Fwd(Webviews.service, Mode.service, keyboardService, app));
 // Request initial render.
 send(Render());
 
+_('overlay').addEventListener('mouseover', event => send(RestPreviews()));
 window.addEventListener('mousedown', send);
 window.addEventListener('mouseover', send);
 window.addEventListener('mouseout', send);
