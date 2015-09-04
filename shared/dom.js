@@ -6,6 +6,13 @@ const sets = (f, n, ...rest) => {
   for (var i = 0; i < n.length; i++) f(n[i], ...rest);
 }
 
+const children = (parent, children) => {
+  for (var i = 0; i < children.length; i++) {
+    parent.appendChild(children[i]);
+  };
+  return parent;
+}
+
 const toggleClass = (el, classname, isAdding) =>
   isAdding ? el.classList.add(classname) : el.classList.remove(classname);
 

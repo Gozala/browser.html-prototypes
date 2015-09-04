@@ -14,6 +14,36 @@ const keyboardService = (msg, send) => {
   }
 };
 
+const Tabs = {};
+
+Tabs.createTab = (webview, i) => {
+  const favicon = document.createElement('div');
+  favicon.className = 'favicon';
+
+  const text = document.createTextNode(webview.title);
+
+  const li = document.createElement('li');
+  li.className = 'tab';
+  li.dataset.webviewIndex = i;
+  li.appendChild(favicon);
+  li.appendChild(text);
+
+  return li;
+};
+
+Tabs.create = (id, state) => {
+  const tabsEl = document.createElement('ul')
+  tabsEl.id = id;
+  tabsEl.className = 'tabs';
+  return children(tabsEl, state.items.map(Tabs.createTab));
+};
+
+Tabs.write = (tabsEl, state) => {
+  selectClass(tabsEl.children, 'tab-selected', state.cursor);
+};
+
+Tabs.widget = Widget(Tabs, _('sidebar'), 'tabs');
+
 const Overlay = {};
 Overlay.service = (msg, send) => {
   if (msg.type === 'mousedown' && msg.target.id === 'overlay') {
@@ -23,7 +53,7 @@ Overlay.service = (msg, send) => {
 
 const Mode = (mode) => touch({mode});
 
-Mode.update = (state, msg) =>
+Mode.update = Cursor((state, msg) =>
   msg.type === 'change-mode' && msg.mode !== state.mode ?
     Mode(msg.mode) :
   msg.type === 'esc' && state.mode === 'show-search' ?
@@ -32,7 +62,7 @@ Mode.update = (state, msg) =>
     Mode('show-webview') :
   msg.type === 'esc' && state.mode === 'show-webview' ?
     Mode('show-tabs') :
-  state;
+  state, 'mode');
 
 Mode.write = (el, state) => {
   toggleClass(el, 'mode-show-tabs', state.mode === 'show-tabs');
@@ -49,16 +79,34 @@ Mode.service = (msg, send) => {
   }
 }
 
-const Webviews = (cursor, selected, resting) => touch({cursor, selected, resting});
+const Webview = (url, title) => touch({url, title, id: url});
 
-Webviews.update = (state, msg) =>
+Webview.create = (webview, i) => {
+  const el = document.createElement('iframe');
+  el.className = 'webview';
+  el.src = webview.url;
+  el.sandbox = true;
+  return el;
+};
+
+const Webviews = (cursor, selected, resting, items) =>
+  touch({cursor, selected, resting, items});
+
+Webviews.update = Cursor((state, msg) =>
   msg.type === 'change-webview' ?
     modify(state, {cursor: msg.index, selected: msg.index, resting: true}) :
   msg.type === 'preview' ?
     modify(state, {cursor: msg.index, resting: false}) :
   msg.type === 'rest-previews' ?
     modify(state, {cursor: state.selected, resting: true}) :
-  state;
+  state, 'webviews');
+
+Webviews.create = (id, state) => {
+  const el = document.createElement('div');
+  el.id = id;
+  el.className = 'webviews';
+  return children(el, state.webviews.items.map(Webview.create));
+};
 
 Webviews.write = (webviews, state, send) => {
   const i = state.mode.mode === 'show-tabs' ?
@@ -78,6 +126,8 @@ Webviews.write = (webviews, state, send) => {
   }
 };
 
+Webviews.widget = Widget(Webviews, $$('body'), 'webviews');
+
 Webviews.service = (msg, send) => {
   if (msg.type === 'mousedown' && msg.target.dataset.webviewIndex) {
     send(ChangeWebview(msg.target.dataset.webviewIndex));
@@ -90,30 +140,28 @@ Webviews.service = (msg, send) => {
   }
 }
 
-const writeTabs = (el, state) => {
-  selectClass(el.children, 'tab-selected', state.cursor);
-}
-
 const State = () => touch({
   mode: Mode('show-webview'),
-  webviews: Webviews(0, 0, true)
+  webviews: Webviews(0, 0, true, [
+    Webview('http://breakingsmart.com/season-1/', 'How software is eating the world'),
+    Webview('http://ben-evans.com', 'Ben Evans'),
+    Webview('http://notcot.org', 'NOTCOT.ORG')
+  ])
 });
 
-State.update = (state, msg) => {
-  state = branch(Webviews.update, state, 'webviews', msg);
-  state = branch(Mode.update, state, 'mode', msg);
-  return state;
-}
+State.update = Update(Webviews.update, Mode.update);
 
 State.write = (state, send) => {
   commit(Mode.write, $$('body'), state.mode, send);
-  commit(Webviews.write, _('webviews'), state, send);
-  commit(writeTabs, _('tabs'), state.webviews, send);
+  Webviews.widget(state, send);
+  Tabs.widget(state.webviews, send);
 };
 
 const app = App(State(), State.update, State.write);
-const service = Fwd(Webviews.service, Mode.service, keyboardService, app);
-const send = Bus(service);
+const send = Bus(Fwd(Webviews.service, Mode.service, keyboardService, app));
+
+// Request initial render.
+send(Render());
 
 window.addEventListener('mousedown', send);
 window.addEventListener('mouseover', send);
