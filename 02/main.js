@@ -36,16 +36,17 @@ Tabs.mount = (tabsEl, state) => {
 };
 
 Tabs.write = (tabsEl, state) => {
-  console.log(state);
   selectClass(tabsEl.children, 'tab-selected', state.cursor);
 };
 
 Tabs.widget = Widget(Tabs, _('tabs'));
 
-const Overlay = {};
-Overlay.service = (msg, send) => {
-  if (msg.type === 'mousedown' && msg.target.id === 'overlay') {
-    send(ChangeMode('show-webview'));
+const overlayService = (msg, send) => {
+  if (msg.type === 'mouseover' && msg.target.id === 'overlay') {
+    send(RestPreviews());
+  }
+  else if (msg.type === 'mousedown' && msg.target.id === 'overlay') {
+    send(ChangeWebview(-1));
   }
 }
 
@@ -91,6 +92,8 @@ const Webviews = (cursor, selected, resting, items) =>
   touch({cursor, selected, resting, items});
 
 Webviews.update = Cursor((state, msg) =>
+  msg.type === 'change-webview' && msg.index === -1 ?
+    modify(state, {cursor: state.cursor, selected: state.cursor, resting: true}) :
   msg.type === 'change-webview' ?
     modify(state, {cursor: msg.index, selected: msg.index, resting: true}) :
   msg.type === 'preview' ?
@@ -151,12 +154,12 @@ State.write = (state, send) => {
 };
 
 const app = App(State(), State.update, State.write);
-const send = Bus(Fwd(Webviews.service, Mode.service, keyboardService, app));
+const send = Bus(Fwd(
+  Webviews.service, Mode.service, keyboardService, overlayService, app));
 
 // Request initial render.
 send(Render());
 
-_('overlay').addEventListener('mouseover', event => send(RestPreviews()));
 window.addEventListener('mousedown', send);
 window.addEventListener('mouseover', send);
 window.addEventListener('mouseout', send);
