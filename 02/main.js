@@ -18,6 +18,8 @@ const keyboardService = (msg, send) => {
   }
 };
 
+const Win = (width, height) => snapshot({width, height});
+
 const Tabs = {};
 
 Tabs.createTab = (webview, i) => {
@@ -146,33 +148,30 @@ Chosen.update = (state, msg) =>
 
 const Webviews = (items) => snapshot({items});
 
-Webviews.write = (el, chosen, items, mode) => {
-  const i = chosen.cursor;
+const calcOffset = (height, i) => -1 * ((height * i) + (40 * i));
 
+Webviews.write = (el, chosen, items, mode, win) => {
+  const i = chosen.cursor;
   if (!isMounted(el)) {
     children(el, items.map(Webview.create));
-    const offset = (-1 * el.children[i].offsetTop);
     el.style.transition = 'none';
-    el.style.transform = cssTranslate(0, offset, 0);
+    el.style.transform = cssTranslate(0, calcOffset(win.height, i), 0);
     mounted(el, true);
   }
   else if (mode.value === 'show-tabs' && chosen.resting) {
     // @TODO figure out a way to do this that doesn't trigger reflow.
     // const rect = webviews.children[i].getBoundingClientRect();
     // @TODO this doesn't work if I haven't appended the element to the dom.
-    const offset = (-1 * el.children[i].offsetTop);
     el.style.transition = 'transform 600ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
-    el.style.transform = cssTranslate(0, offset, -800) + ' rotateY(30deg)';
+    el.style.transform = cssTranslate(0, calcOffset(win.height, i), -800) + ' rotateY(30deg)';
   }
   else if (mode.value === 'show-tabs') {
-    const offset = (-1 * el.children[i].offsetTop);
     el.style.transition = 'transform 600ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
-    el.style.transform = cssTranslate(0, offset, -3000)  + ' rotateY(30deg)';
+    el.style.transform = cssTranslate(0, calcOffset(win.height, i), -3000)  + ' rotateY(30deg)';
   }
   else {
-    const offset = (-1 * el.children[i].offsetTop);
     el.style.transition = 'transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
-    el.style.transform = cssTranslate(0, offset, 0);
+    el.style.transform = cssTranslate(0, calcOffset(win.height, i), 0);
   }
 };
 
@@ -189,10 +188,11 @@ const bodyEl = document.querySelector('body');
 const webviewsEl = document.getElementById('webviews');
 const tabsEl = document.getElementById('tabs');
 
-const AppState = (mode, chosen, webviews) =>
-  snapshot({mode, chosen, webviews});
+const AppState = (win, mode, chosen, webviews) =>
+  snapshot({win, mode, chosen, webviews});
 
 AppState.update = (state, msg) => snapshot.swap(state, AppState(
+  state.win,
   Mode.update(state.mode, msg),
   Chosen.update(state.chosen, msg),
   state.webviews
@@ -201,11 +201,12 @@ AppState.update = (state, msg) => snapshot.swap(state, AppState(
 AppState.write = (state) => {
   commit(Mode.write, bodyEl, state.mode);
   commit(Webviews.write,
-    webviewsEl, state.chosen, state.webviews.items, state.mode);
+    webviewsEl, state.chosen, state.webviews.items, state.mode, state.win);
   commit(Tabs.write, tabsEl, state.chosen, state.webviews.items);
 };
 
 const app = App(AppState.update, AppState.write, AppState(
+  Win(window.innerWidth, window.innerHeight),
   Mode('show-webview'),
   Chosen(0, 0, true),
   Webviews([
