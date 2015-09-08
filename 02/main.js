@@ -1,3 +1,7 @@
+const mounted = (element, isMounted) =>
+  set(element, 'mounted@widget', isMounted);
+const isMounted = (element) => !!element['mounted@widget'];
+
 const cssTranslate = (x, y, z) => `translate3d(${x}px, ${y}px, ${z}px)`;
 const log = (m) => console.log(m);
 
@@ -31,15 +35,14 @@ Tabs.createTab = (webview, i) => {
   return li;
 };
 
-Tabs.mount = (tabsEl, state) => {
-  children(tabsEl, state.items.map(Tabs.createTab));
-};
+Tabs.write = (el, chosen, items) => {
+  if (!isMounted(el)) {
+    children(el, items.map(Tabs.createTab));
+    mounted(el, true);
+  }
 
-Tabs.write = (tabsEl, state) => {
-  selectClass(tabsEl.children, 'tab-selected', state.cursor);
+  selectClass(el.children, 'tab-selected', chosen.cursor);
 };
-
-Tabs.widget = Widget(Tabs, _('tabs'));
 
 const overlayService = (msg, send) => {
   if (msg.type === 'mouseover' && msg.target.id === 'overlay') {
@@ -50,22 +53,23 @@ const overlayService = (msg, send) => {
   }
 }
 
-const Mode = (mode) => touch({mode});
+const Mode = (mode) => snapshot({value: mode});
 
-Mode.update = Cursor((state, msg) =>
-  msg.type === 'change-mode' && msg.mode !== state.mode ?
+Mode.update = (state, msg) =>
+  msg.type === 'change-mode' && msg.mode !== state.curr ?
     Mode(msg.mode) :
-  msg.type === 'esc' && state.mode === 'show-search' ?
+  msg.type === 'esc' && state.value === 'show-search' ?
     Mode('show-webview') :
-  msg.type === 'esc' && state.mode === 'show-tabs' ?
+  msg.type === 'esc' && state.value === 'show-tabs' ?
     Mode('show-webview') :
-  msg.type === 'esc' && state.mode === 'show-webview' ?
+  msg.type === 'esc' && state.value === 'show-webview' ?
     Mode('show-tabs') :
-  state, 'mode');
+  state;
 
 Mode.write = (el, state) => {
-  toggleClass(el, 'mode-show-tabs', state.mode === 'show-tabs');
-  toggleClass(el, 'mode-show-search', state.mode === 'show-search');
+  toggleClass(el, 'mode-show-webview', state.value === 'show-webview');
+  toggleClass(el, 'mode-show-tabs', state.value === 'show-tabs');
+  toggleClass(el, 'mode-show-search', state.value === 'show-search');
 }
 
 Mode.service = (msg, send) => {
@@ -78,53 +82,87 @@ Mode.service = (msg, send) => {
   }
 }
 
+const Windowbar = {};
+Windowbar.create = (webview) => {
+  const header = document.createElement('header');
+  header.setAttribute('class', 'windowbar');
+
+  const location = document.createElement('div');
+  location.setAttribute('class', 'location');
+
+  const text = document.createTextNode(webview.title);
+  location.appendChild(text);
+
+  header.appendChild(location);
+
+  return header;
+}
+
 const Webview = (url, title) => touch({url, title, id: url});
 
 Webview.create = (webview, i) => {
-  const el = document.createElement('iframe');
-  el.className = 'webview';
-  el.src = webview.url;
-  el.sandbox = true;
-  return el;
+  const div = document.createElement('div');
+  div.setAttribute('class', 'webview');
+
+  div.appendChild(Windowbar.create(webview));
+
+  const iframe = document.createElement('iframe');
+  iframe.setAttribute('mozbrowser', 'mozbrowser');
+  iframe.setAttribute('remote', 'remote');
+  iframe.setAttribute('src', webview.url);
+
+  div.appendChild(iframe);
+
+  return div;
 };
 
-const Webviews = (cursor, selected, resting, items) =>
-  touch({cursor, selected, resting, items});
+const Chosen = (cursor, selected, resting) =>
+  snapshot({cursor, selected, resting});
 
-Webviews.update = Cursor((state, msg) =>
+Chosen.update = (state, msg) =>
   msg.type === 'change-webview' && msg.index === -1 ?
-    modify(state, {cursor: state.cursor, selected: state.cursor, resting: true}) :
+    Chosen(state.cursor, state.cursor, true) :
   msg.type === 'change-webview' ?
-    modify(state, {cursor: msg.index, selected: msg.index, resting: true}) :
+    Chosen(msg.index, msg.index, true) :
   msg.type === 'preview' ?
-    modify(state, {cursor: msg.index, resting: false}) :
+    Chosen(msg.index, state.selected, false) :
   msg.type === 'rest-previews' ?
-    modify(state, {resting: true}) :
+    Chosen(state.cursor, state.selected, true) :
   msg.type === 'esc' ?
-    modify(state, {cursor: state.selected, resting: true}) :
-  state, 'webviews');
+    Chosen(state.selected, state.selected, true) :
+  state;
 
-Webviews.mount = (el, state) => {
-  children(el, state.webviews.items.map(Webview.create));
-};
+const Webviews = (items) => snapshot({items});
 
-Webviews.write = (webviews, state, send) => {
-  const i = state.webviews.cursor;
+Webviews.write = (el, chosen, items, mode) => {
+  const i = chosen.cursor;
 
-  const offset = (-1 * webviews.children[i].offsetTop);
-
-  if (state.mode.mode === 'show-tabs' && state.webviews.resting) {
-    webviews.style.transform = cssTranslate(0, offset, -800) + ' rotateY(30deg)';    
+  if (!isMounted(el)) {
+    children(el, items.map(Webview.create));
+    const offset = (-1 * el.children[i].offsetTop);
+    el.style.transition = 'none';
+    el.style.transform = cssTranslate(0, offset, 0);
+    mounted(el, true);
   }
-  else if (state.mode.mode === 'show-tabs') {
-    webviews.style.transform = cssTranslate(0, offset, -2000)  + ' rotateY(30deg)';
+  else if (mode === 'show-tabs' && chosen.resting) {
+    // @TODO figure out a way to do this that doesn't trigger reflow.
+    // const rect = webviews.children[i].getBoundingClientRect();
+    // @TODO this doesn't work if I haven't appended the element to the dom.
+    const offset = (-1 * el.children[i].offsetTop);
+    el.style.transition = 'transform 600ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
+    el.style.transform = cssTranslate(0, offset, -800) + ' rotateY(30deg)';
+  }
+  else if (mode === 'show-tabs') {
+    const offset = (-1 * el.children[i].offsetTop);
+    el.style.transition = 'transform 600ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
+    el.style.transform = cssTranslate(0, offset, -3000)  + ' rotateY(30deg)';
   }
   else {
-    webviews.style.transform = cssTranslate(0, offset, 0);
+    const offset = (-1 * el.children[i].offsetTop);
+    el.style.transition = 'transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
+    el.style.transform = cssTranslate(0, offset, 0);
   }
 };
-
-Webviews.widget = Widget(Webviews, _('webviews'));
 
 Webviews.service = (msg, send) => {
   if (msg.type === 'mousedown' && msg.target.dataset.webviewIndex) {
@@ -135,32 +173,45 @@ Webviews.service = (msg, send) => {
   }
 }
 
-const State = () => touch({
-  mode: Mode('show-webview'),
-  webviews: Webviews(0, 0, true, [
-    Webview('http://breakingsmart.com/season-1/', 'How software is eating the world'),
-    Webview('http://ben-evans.com', 'Ben Evans'),
-    Webview('http://en.wikipedia.org', 'Wikipedia'),
-    Webview('http://breakingsmart.com/season-1/the-future-in-the-rear-view-mirror/', 'The future in a rear-view mirror')
-  ])
-});
+const bodyEl = document.querySelector('body');
+const webviewsEl = document.getElementById('webviews');
+const tabsEl = document.getElementById('tabs');
 
-State.update = Update(Webviews.update, Mode.update);
+const AppState = (mode, chosen, webviews) =>
+  snapshot({mode, chosen, webviews});
 
-State.write = (state, send) => {
-  commit(Mode.write, $$('body'), state.mode, send);
-  Webviews.widget(state, send);
-  Tabs.widget(state.webviews, send);
+AppState.update = (state, msg) => snapshot.swap(state, AppState(
+  Mode.update(state.mode, msg),
+  Chosen.update(state.chosen, msg),
+  state.webviews
+));
+
+AppState.write = (state) => {
+  commit(Mode.write, bodyEl, state.mode);
+  commit(Webviews.write,
+    webviewsEl, state.chosen, state.webviews.items, state.mode.value);
+  commit(Tabs.write, tabsEl, state.chosen, state.webviews.items);
 };
 
-const app = App(State(), State.update, State.write);
+const app = App(AppState.update, AppState.write, AppState(
+  Mode('show-webview'),
+  Chosen(0, 0, true),
+  Webviews([
+    Webview('http://breakingsmart.com/season-1/', 'How software is eating the world'),
+    Webview('http://en.wikipedia.org', 'Wikipedia'),
+    Webview('https://en.wikipedia.org/wiki/Maxima_clam#/media/File:2_Tridacna_gigas.jpg', 'Maxima Clam'),
+    Webview('http://breakingsmart.com/season-1/the-future-in-the-rear-view-mirror/', 'The future in a rear-view mirror')
+  ])
+));
+
 const send = Bus(Fwd(
   Webviews.service, Mode.service, keyboardService, overlayService, app));
 
 // Request initial render.
 send(Render());
 
+window.addEventListener('keyup',
+  event => send({type: 'keyup', keyCode: event.keyCode}));
 window.addEventListener('mousedown', send);
 window.addEventListener('mouseover', send);
 window.addEventListener('mouseout', send);
-window.addEventListener('keyup', send);

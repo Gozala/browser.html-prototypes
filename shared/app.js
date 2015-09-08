@@ -43,20 +43,22 @@ const modified = (object) => object['modified@touch'] || 0;
 // Patch an object and mark it modified
 const modify = (object, diff) => touch(Object.assign(object, diff));
 
-// Update a child object on an object and mark the object dirty if the
-// property is dirty.
-const branch = (step, tree, key, msg) => {
-  tree[key] = step(tree[key], msg);
-  if (modified(tree[key]) > modified(tree)) touch(tree);
-  return tree;
-};
+// Compare 2 states and choose one.
+const swap = (compare, stateA, stateB) =>
+  compare(stateA, stateB) ? stateB : stateA;
 
-const Cursor = (update, key) => (tree, msg) => branch(update, tree, key, msg);
+const test = (state, diff, compare) => {
+  for (var key in diff) {
+    if (compare(state[key], diff[key])) return true;
+  }
+  return false;
+}
 
-const Update = (...update) => (state, msg) => {
-  for (var i = 0; i < update.length; i++) state = update[i](state, msg);
-  return state;
-};
+const isNewer = (a, b) => modified(a) < modified(b);
+
+const snapshot = (state) => Object.freeze(touch(state));
+snapshot.isUpdate = (state, diff) => test(state, diff, isNewer);
+snapshot.swap = (stateA, stateB) => swap(snapshot.isUpdate, stateA, stateB);
 
 // Write to element only if modified time doesn't match.
 const commit = (write, element, state, ...rest) => {
@@ -66,28 +68,11 @@ const commit = (write, element, state, ...rest) => {
   }
 };
 
-const mounted = (element, isMounted) =>
-  set(element, 'mounted@widget', isMounted);
-const isMounted = (element) => !!element['mounted@widget'];
-
-const Widget = (widget, element) => (state, ...rest) => {
-  if (!state) {
-    widget.unmount(element);
-    mounted(element, false);
-  } else if (!isMounted(element)) {
-    widget.mount(element, state, ...rest);
-    mounted(element, true);
-    commit(widget.write, element, state, ...rest);
-  } else {
-    commit(widget.write, element, state, ...rest);
-  }
-};
-
 const Render = () => ({type: 'render'});
 
 // Creates stateful services that knows how to schedule writes to DOM
 // based on render request messages.
-const App = (state, update, write) => {
+const App = (update, write, state) => {
   var isScheduled = false;
   return (msg, send) => {
     if (msg.type === 'render' && !isScheduled) {
