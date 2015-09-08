@@ -73,7 +73,7 @@ Mode.write = (el, state) => {
 }
 
 Mode.service = (msg, send) => {
-  if (msg.type === 'mousedown' && msg.target.id === 'tabs-button') {
+  if (msg.type === 'mousedown' && msg.target.classList.contains('tabs-button')) {
     send(ChangeMode('show-tabs'));
   }
 
@@ -83,7 +83,7 @@ Mode.service = (msg, send) => {
 }
 
 const Windowbar = {};
-Windowbar.create = (webview) => {
+Windowbar.create = (webview, length) => {
   const header = document.createElement('header');
   header.setAttribute('class', 'windowbar');
 
@@ -95,16 +95,28 @@ Windowbar.create = (webview) => {
 
   header.appendChild(location);
 
+  const button = document.createElement('div');
+  button.setAttribute('class', 'tabs-button');
+  button.appendChild(document.createTextNode(length));
+
+  header.appendChild(button);
+
   return header;
+}
+
+Windowbar.service = (msg, send) => {
+  if (msg.type === 'mousedown' && msg.target === 'tabs-button') {
+    send(ChangeMode('show-tabs'));
+  };
 }
 
 const Webview = (url, title) => touch({url, title, id: url});
 
-Webview.create = (webview, i) => {
+Webview.create = (webview, i, webviews) => {
   const div = document.createElement('div');
   div.setAttribute('class', 'webview');
 
-  div.appendChild(Windowbar.create(webview));
+  div.appendChild(Windowbar.create(webview, webviews.length));
 
   const iframe = document.createElement('iframe');
   iframe.setAttribute('mozbrowser', 'mozbrowser');
@@ -144,7 +156,7 @@ Webviews.write = (el, chosen, items, mode) => {
     el.style.transform = cssTranslate(0, offset, 0);
     mounted(el, true);
   }
-  else if (mode === 'show-tabs' && chosen.resting) {
+  else if (mode.value === 'show-tabs' && chosen.resting) {
     // @TODO figure out a way to do this that doesn't trigger reflow.
     // const rect = webviews.children[i].getBoundingClientRect();
     // @TODO this doesn't work if I haven't appended the element to the dom.
@@ -152,7 +164,7 @@ Webviews.write = (el, chosen, items, mode) => {
     el.style.transition = 'transform 600ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
     el.style.transform = cssTranslate(0, offset, -800) + ' rotateY(30deg)';
   }
-  else if (mode === 'show-tabs') {
+  else if (mode.value === 'show-tabs') {
     const offset = (-1 * el.children[i].offsetTop);
     el.style.transition = 'transform 600ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
     el.style.transform = cssTranslate(0, offset, -3000)  + ' rotateY(30deg)';
@@ -189,7 +201,7 @@ AppState.update = (state, msg) => snapshot.swap(state, AppState(
 AppState.write = (state) => {
   commit(Mode.write, bodyEl, state.mode);
   commit(Webviews.write,
-    webviewsEl, state.chosen, state.webviews.items, state.mode.value);
+    webviewsEl, state.chosen, state.webviews.items, state.mode);
   commit(Tabs.write, tabsEl, state.chosen, state.webviews.items);
 };
 
@@ -205,7 +217,9 @@ const app = App(AppState.update, AppState.write, AppState(
 ));
 
 const send = Bus(Fwd(
-  Webviews.service, Mode.service, keyboardService, overlayService, app));
+  Webviews.service, Mode.service, keyboardService, overlayService,
+  Windowbar.service, app
+));
 
 // Request initial render.
 send(Render());

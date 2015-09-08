@@ -38,7 +38,8 @@ const set = (object, key, value) => {
 const touch = (object) => set(object, 'modified@touch', performance.now());
 
 // Get a modified time from an object
-const modified = (object) => object['modified@touch'] || 0;
+const modified = (x) =>
+  x && x['modified@touch'] ? x['modified@touch'] : 0;
 
 // Patch an object and mark it modified
 const modify = (object, diff) => touch(Object.assign(object, diff));
@@ -56,14 +57,19 @@ const test = (state, diff, compare) => {
 
 const isNewer = (a, b) => modified(a) < modified(b);
 
+const newest = (...args) => {
+  args.sort(isNewer);
+  return args.shift();
+}
+
 const snapshot = (state) => Object.freeze(touch(state));
 snapshot.isUpdate = (state, diff) => test(state, diff, isNewer);
 snapshot.swap = (stateA, stateB) => swap(snapshot.isUpdate, stateA, stateB);
 
 // Write to element only if modified time doesn't match.
-const commit = (write, element, state, ...rest) => {
-  if (modified(state) > modified(element)) {
-    write(element, state, ...rest);
+const commit = (write, element, ...args) => {
+  if (modified(newest(...args)) > modified(element)) {
+    write(element, ...args);
     touch(element);
   }
 };
