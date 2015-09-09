@@ -58,6 +58,8 @@ const commit = (write, element, state, ...rest) => {
   }
 };
 
+const Writer = (write) => (el, ...args) => commit(write, el, ...args);
+
 function App(state, update, write, send) {
   this.state = state;
   this.update = update;
