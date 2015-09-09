@@ -22,12 +22,6 @@ const Bus = (receive) => {
   return send;
 };
 
-const Fwd = (...mailboxes) => (msg, send) => {
-  for (var i = 0; i < mailboxes.length; i++) {
-    mailboxes[i](msg, send);
-  };
-};
-
 // Set a value on an object, returning object.
 const set = (object, key, value) => {
   object[key] = value;
@@ -42,60 +36,57 @@ const modified = (x) =>
   x && x['modified@touch'] ? x['modified@touch'] : 0;
 
 // Patch an object and mark it modified
-const modify = (object, diff) => touch(Object.assign(object, diff));
+const modify = (object, key, value) => touch(set(object, key, value));
+const mix = (object, diff) => touch(Object.assign(object, diff));
 
-// Compare 2 states and choose one.
-const swap = (compare, stateA, stateB) =>
-  compare(stateA, stateB) ? stateB : stateA;
+const chooseNewest = (timestamp, thing) =>
+  modified(thing) > timestamp ? modified(thing) : timestamp;
+const newest = (...things) => things.reduce(chooseNewest, 0);
 
-const test = (state, diff, compare) => {
-  for (var key in diff) {
-    if (compare(state[key], diff[key])) return true;
-  }
-  return false;
+const insert = (update, state, key, msg) => {
+  const lastModified = modified(state[key]);
+  state[key] = update(state[key], msg);
+  if (modified(state[key]) > lastModified) touch(state);
+  return state;
 }
-
-const isNewer = (a, b) => modified(a) < modified(b);
-
-const newest = (...args) => {
-  args.sort(isNewer);
-  return args.shift();
-}
-
-const snapshot = (state) => Object.freeze(touch(state));
-snapshot.isUpdate = (state, diff) => test(state, diff, isNewer);
-snapshot.swap = (stateA, stateB) => swap(snapshot.isUpdate, stateA, stateB);
 
 // Write to element only if modified time doesn't match.
-const commit = (write, element, ...args) => {
-  if (modified(newest(...args)) > modified(element)) {
-    write(element, ...args);
+const commit = (write, element, state, ...rest) => {
+  if (newest(state, ...rest) > modified(element)) {
+    write(element, state, ...rest);
     touch(element);
   }
 };
 
-const Render = () => ({type: 'render'});
-
-// Creates stateful services that knows how to schedule writes to DOM
-// based on render request messages.
-const App = (update, write, state) => {
-  var isScheduled = false;
-  return (msg, send) => {
-    if (msg.type === 'render' && !isScheduled) {
-      isScheduled = true;
-      requestAnimationFrame(() => {
-        write(state, send);
-        // Unblock scheduler.
-        isScheduled = false;
-      });
-    } else {
-      const lastModified = modified(state);
-      state = update(state, msg);
-      // If state has been modified, schedule an animation frame.
-      if (modified(state) > lastModified) send(Render());
-    }
-  };
+function App(state, update, write, send) {
+  this.state = state;
+  this.update = update;
+  this.write = write;
+  this.send = send;
+  this.render = this.render.bind(this);
+  return this;
 };
 
-// @TODO bus and app might be better expressed as a single class.
-// App is stateful, after all.
+App.prototype = {
+  isScheduled: false,
+
+  receive(msg) {
+    const lastModified = modified(this.state);
+    this.state = this.update(this.state, msg);
+    if (modified(this.state) > lastModified) {
+      this.schedule();
+    }
+  },
+
+  schedule() {
+    if (!this.isScheduled) {
+      this.isScheduled = true;
+      requestAnimationFrame(this.render);
+    };
+  },
+
+  render() {
+    this.write(this.state, this.send);
+    this.isScheduled = false;
+  }
+};

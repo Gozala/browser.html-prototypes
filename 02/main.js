@@ -12,13 +12,13 @@ const ChangeMode = (mode) => ({type: 'change-mode', mode});
 const ChangeWebview = (index) => ({type: 'change-webview', index: Number(index)});
 const EscKey = () => ({type: 'esc'});
 
-const keyboardService = (msg, send) => {
+const keyboardService = send => msg => {
   if (msg.type === 'keyup' && msg.keyCode === 27) {
     send(EscKey());
   }
 };
 
-const Win = (width, height) => snapshot({width, height});
+const Win = (width, height) => touch({width, height});
 
 const Tabs = {};
 
@@ -46,7 +46,7 @@ Tabs.write = (el, chosen, items) => {
   selectClass(el.children, 'tab-selected', chosen.cursor);
 };
 
-const overlayService = (msg, send) => {
+const overlayService = send => msg => {
   if (msg.type === 'mouseover' && msg.target.id === 'overlay') {
     send(RestPreviews());
   }
@@ -55,7 +55,7 @@ const overlayService = (msg, send) => {
   }
 }
 
-const Mode = (mode) => snapshot({value: mode});
+const Mode = (mode) => touch({value: mode});
 
 Mode.update = (state, msg) =>
   msg.type === 'change-mode' && msg.mode !== state.curr ?
@@ -74,7 +74,7 @@ Mode.write = (el, state) => {
   toggleClass(el, 'mode-show-search', state.value === 'show-search');
 }
 
-Mode.service = (msg, send) => {
+Mode.service = send => msg => {
   if (msg.type === 'mousedown' && msg.target.classList.contains('tabs-button')) {
     send(ChangeMode('show-tabs'));
   }
@@ -106,7 +106,7 @@ Windowbar.create = (webview, length) => {
   return header;
 }
 
-Windowbar.service = (msg, send) => {
+Windowbar.service = send => msg => {
   if (msg.type === 'mousedown' && msg.target === 'tabs-button') {
     send(ChangeMode('show-tabs'));
   };
@@ -131,7 +131,7 @@ Webview.create = (webview, i, webviews) => {
 };
 
 const Chosen = (cursor, selected, resting) =>
-  snapshot({cursor, selected, resting});
+  touch({cursor, selected, resting});
 
 Chosen.update = (state, msg) =>
   msg.type === 'change-webview' && msg.index === -1 ?
@@ -146,7 +146,7 @@ Chosen.update = (state, msg) =>
     Chosen(state.selected, state.selected, true) :
   state;
 
-const Webviews = (items) => snapshot({items});
+const Webviews = (items) => touch({items});
 
 const calcOffset = (height, i) => -1 * ((height * i) + (40 * i));
 
@@ -175,7 +175,7 @@ Webviews.write = (el, chosen, items, mode, win) => {
   }
 };
 
-Webviews.service = (msg, send) => {
+Webviews.service = send => msg => {
   if (msg.type === 'mousedown' && msg.target.dataset.webviewIndex) {
     send(ChangeWebview(msg.target.dataset.webviewIndex));
   }
@@ -188,42 +188,47 @@ const bodyEl = document.querySelector('body');
 const webviewsEl = document.getElementById('webviews');
 const tabsEl = document.getElementById('tabs');
 
-const AppState = (win, mode, chosen, webviews) =>
-  snapshot({win, mode, chosen, webviews});
+const updateApp = (state, msg) => {
+  insert(Mode.update, state, 'mode', msg);
+  insert(Chosen.update, state, 'chosen', msg);
+  return state;
+};
 
-AppState.update = (state, msg) => snapshot.swap(state, AppState(
-  state.win,
-  Mode.update(state.mode, msg),
-  Chosen.update(state.chosen, msg),
-  state.webviews
-));
-
-AppState.write = (state) => {
+const writeApp = (state) => {
   commit(Mode.write, bodyEl, state.mode);
   commit(Webviews.write,
     webviewsEl, state.chosen, state.webviews.items, state.mode, state.win);
   commit(Tabs.write, tabsEl, state.chosen, state.webviews.items);
 };
 
-const app = App(AppState.update, AppState.write, AppState(
-  Win(window.innerWidth, window.innerHeight),
-  Mode('show-webview'),
-  Chosen(0, 0, true),
-  Webviews([
+const send = Bus((msg) => {
+  app.receive(msg);
+  webviews(msg);
+  mode(msg);
+  keyboard(msg);
+  overlay(msg);
+  windowbar(msg);
+});
+
+const webviews = Webviews.service(send);
+const mode = Mode.service(send);
+const keyboard = keyboardService(send);
+const overlay = overlayService(send);
+const windowbar = Windowbar.service(send);
+
+const app = new App({
+  win: Win(window.innerWidth, window.innerHeight),
+  mode: Mode('show-webview'),
+  chosen: Chosen(0, 0, true),
+  webviews: Webviews([
     Webview('http://breakingsmart.com/season-1/', 'How software is eating the world'),
     Webview('http://en.wikipedia.org', 'Wikipedia'),
     Webview('https://en.wikipedia.org/wiki/Maxima_clam#/media/File:2_Tridacna_gigas.jpg', 'Maxima Clam'),
     Webview('http://breakingsmart.com/season-1/the-future-in-the-rear-view-mirror/', 'The future in a rear-view mirror')
   ])
-));
+}, updateApp, writeApp, send);
 
-const send = Bus(Fwd(
-  Webviews.service, Mode.service, keyboardService, overlayService,
-  Windowbar.service, app
-));
-
-// Request initial render.
-send(Render());
+app.schedule();
 
 window.addEventListener('keyup',
   event => send({type: 'keyup', keyCode: event.keyCode}));
