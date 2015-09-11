@@ -1,3 +1,99 @@
+// Set a value on an object, returning object.
+const set = (object, key, value) => {
+  object[key] = value;
+  return object;
+}
+
+// Set a modified time on an object.
+const touch = (object) => set(object, '_modified', performance.now());
+
+// Get a modified time from an object.
+// If object has no modified date, the value is constant (we use 0)
+// to represent constant values.
+const modified = (x) => x && x._modified ? x._modified : 0;
+
+const model = (object) => Object.freeze(touch(object));
+const snapshot = (value) => model({value});
+
+const value = (x) => x && x.value != null ? x.value : x;
+
+const chooseNewest = (timestamp, thing) =>
+  modified(thing) > timestamp ? modified(thing) : timestamp;
+
+// Get the newest modified
+const newest = (...things) => things.reduce(chooseNewest, 0);
+
+const sync = (write, timestamp, element, ...rest) => {
+  if (timestamp > modified(element)) {
+    write(element, ...rest);
+    touch(element);
+  }
+}
+
+// Render an element if any property changes.
+const render = (write, element, ...rest) =>
+  sync(write, newest(...rest), element, ...rest);
+
+const Writer = (write) => (element) => (...rest) =>
+  render(write, element, ...rest);
+
+const exists = (x) => x != null;
+const compact = (array) => array.filter(exists);
+
+// Flatten a series of patches.
+const Patch = {};
+
+Patch.flatten = (...patches) => {
+  const changes = compact(patches);
+  return changes.length ? Object.assign({}, ...changes) : null;
+}
+
+Patch.branch = (update, state, msg, key) => {
+  const diff = update(state[key], msg);
+  return diff ? {[key]: diff} : null;
+}
+
+const Change = (diff, message) => model({type: 'change', diff, message});
+
+Change.none = Change();
+
+Change.diff = (change) => change.diff;
+
+Change.message = (change) => change.message;
+
+Change.update = (update, state, change) =>
+  change.diff ? update(state, change.diff) : state;
+
+const AnimationFrame = {};
+
+AnimationFrame.Frame = model({type: 'animationframe'});
+AnimationFrame.Schedule = model({type: 'schedule'});
+
+AnimationFrame.service = (send) => {
+  var isScheduled = false;
+
+  const sendFrame = () => {
+    send(AnimationFrame.Frame);
+    isScheduled = false;
+  };
+
+  return (msg) => {
+    if (msg === AnimationFrame.Schedule && !isScheduled) {
+      isScheduled = true;
+      requestAnimationFrame(sendFrame);
+    };
+  };
+};
+
+const Digest = (...messages) => model({type: 'digest', messages});
+Digest.service = (send) => (msg) => {
+  if (msg.type === 'digest') {
+    for (var i = 0; i < msg.messages.length; i++) {
+      send(msg.messages[i]);
+    };
+  };
+};
+
 // A message bus. Dispatches messages to `receive` in order (FIFO).
 const Bus = (receive) => {
   var isDraining = false;
@@ -12,83 +108,20 @@ const Bus = (receive) => {
     if (!isDraining) {
       isDraining = true;
       while (isDraining) {
-        receive(queue.shift(), send);
+        receive(queue.shift());
         if (!queue.length) isDraining = false;
       };
-    }
+    };
     return msg;
   };
 
   return send;
 };
 
-// Set a value on an object, returning object.
-const set = (object, key, value) => {
-  object[key] = value;
-  return object;
-}
-
-// Set a modified time on an object.
-const touch = (object) => set(object, 'modified@touch', performance.now());
-
-// Get a modified time from an object
-const modified = (x) =>
-  x && x['modified@touch'] ? x['modified@touch'] : 0;
-
-// Patch an object and mark it modified
-const modify = (object, key, value) => touch(set(object, key, value));
-const mix = (object, diff) => touch(Object.assign(object, diff));
-
-const chooseNewest = (timestamp, thing) =>
-  modified(thing) > timestamp ? modified(thing) : timestamp;
-const newest = (...things) => things.reduce(chooseNewest, 0);
-
-const insert = (update, state, key, msg) => {
-  const lastModified = modified(state[key]);
-  state[key] = update(state[key], msg);
-  if (modified(state[key]) > lastModified) touch(state);
-  return state;
-}
-
-// Write to element only if modified time doesn't match.
-const commit = (write, element, state, ...rest) => {
-  if (newest(state, ...rest) > modified(element)) {
-    write(element, state, ...rest);
-    touch(element);
-  }
-};
-
-const Writer = (write) => (el, ...args) => commit(write, el, ...args);
-
-function App(state, update, write, send) {
-  this.state = state;
-  this.update = update;
-  this.write = write;
-  this.send = send;
-  this.render = this.render.bind(this);
-  return this;
-};
-
-App.prototype = {
-  isScheduled: false,
-
-  receive(msg) {
-    const lastModified = modified(this.state);
-    this.state = this.update(this.state, msg);
-    if (modified(this.state) > lastModified) {
-      this.schedule();
-    }
-  },
-
-  schedule() {
-    if (!this.isScheduled) {
-      this.isScheduled = true;
-      requestAnimationFrame(this.render);
-    };
-  },
-
-  render() {
-    this.write(this.state, this.send);
-    this.isScheduled = false;
-  }
+const App = (state, update, write, send) => (msg) => {
+  const change = update(state, msg);
+  Change.update(Object.assign, state, change);
+  if (change.message) send(change.message);
+  // If message received was an animationframe, write state now.
+  if (msg === AnimationFrame.Frame) write(state);
 };

@@ -3,7 +3,6 @@ const mounted = (element, isMounted) =>
 const isMounted = (element) => !!element['mounted@widget'];
 
 const cssTranslate = (x, y, z) => `translate3d(${x}px, ${y}px, ${z}px)`;
-const log = (m) => console.log(m);
 
 // Events
 const Preview = (index) => ({type: 'preview', index: Number(index)});
@@ -18,7 +17,7 @@ const keyboardService = send => msg => {
   }
 };
 
-const Win = (width, height) => touch({width, height});
+const Win = (width, height) => model({width, height});
 
 const Tabs = {};
 
@@ -37,14 +36,14 @@ Tabs.createTab = (webview, i) => {
   return li;
 };
 
-Tabs.write = (el, chosen, items) => {
+Tabs.writer = Writer((el, chosen, webviews) => {
   if (!isMounted(el)) {
-    children(el, items.map(Tabs.createTab));
+    children(el, webviews.map(Tabs.createTab));
     mounted(el, true);
   }
 
   selectClass(el.children, 'tab-selected', chosen.cursor);
-};
+});
 
 const overlayService = send => msg => {
   if (msg.type === 'mouseover' && msg.target.id === 'overlay') {
@@ -55,24 +54,24 @@ const overlayService = send => msg => {
   }
 }
 
-const Mode = (mode) => touch({value: mode});
+const Mode = (mode) => snapshot(mode);
 
 Mode.update = (state, msg) =>
-  msg.type === 'change-mode' && msg.mode !== state.curr ?
+  msg.type === 'change-mode' && msg.mode !== value(state) ?
     Mode(msg.mode) :
-  msg.type === 'esc' && state.value === 'show-search' ?
+  msg.type === 'esc' && value(state) === 'show-search' ?
     Mode('show-webview') :
-  msg.type === 'esc' && state.value === 'show-tabs' ?
+  msg.type === 'esc' && value(state) === 'show-tabs' ?
     Mode('show-webview') :
-  msg.type === 'esc' && state.value === 'show-webview' ?
+  msg.type === 'esc' && value(state) === 'show-webview' ?
     Mode('show-tabs') :
-  state;
+  null;
 
-Mode.write = (el, state) => {
-  toggleClass(el, 'mode-show-webview', state.value === 'show-webview');
-  toggleClass(el, 'mode-show-tabs', state.value === 'show-tabs');
-  toggleClass(el, 'mode-show-search', state.value === 'show-search');
-}
+Mode.writer = Writer((el, mode) => {
+  toggleClass(el, 'mode-show-webview', mode.value === 'show-webview');
+  toggleClass(el, 'mode-show-tabs', mode.value === 'show-tabs');
+  toggleClass(el, 'mode-show-search', mode.value === 'show-search');
+});
 
 Mode.service = send => msg => {
   if (msg.type === 'mousedown' && msg.target.classList.contains('tabs-button')) {
@@ -112,7 +111,7 @@ Windowbar.service = send => msg => {
   };
 }
 
-const Webview = (url, title) => touch({url, title, id: url});
+const Webview = (url, title) => model({url, title, id: url});
 
 Webview.create = (webview, i, webviews) => {
   const div = document.createElement('div');
@@ -131,7 +130,7 @@ Webview.create = (webview, i, webviews) => {
 };
 
 const Chosen = (cursor, selected, resting) =>
-  touch({cursor, selected, resting});
+  model({cursor, selected, resting});
 
 Chosen.update = (state, msg) =>
   msg.type === 'change-webview' && msg.index === -1 ?
@@ -144,24 +143,21 @@ Chosen.update = (state, msg) =>
     Chosen(state.cursor, state.selected, true) :
   msg.type === 'esc' ?
     Chosen(state.selected, state.selected, true) :
-  state;
-
-const Webviews = (items) => touch({items});
+  null;
 
 const calcOffset = (height, i) => -1 * ((height * i) + (40 * i));
 
-Webviews.write = (el, chosen, items, mode, win) => {
+const Webviews = {};
+
+Webviews.writer = Writer((el, chosen, webviews, mode, win) => {
   const i = chosen.cursor;
   if (!isMounted(el)) {
-    children(el, items.map(Webview.create));
+    children(el, webviews.map(Webview.create));
     el.style.transition = 'none';
     el.style.transform = cssTranslate(0, calcOffset(win.height, i), 0);
     mounted(el, true);
   }
   else if (mode.value === 'show-tabs' && chosen.resting) {
-    // @TODO figure out a way to do this that doesn't trigger reflow.
-    // const rect = webviews.children[i].getBoundingClientRect();
-    // @TODO this doesn't work if I haven't appended the element to the dom.
     el.style.transition = 'transform 600ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
     el.style.transform = cssTranslate(0, calcOffset(win.height, i), -800) + ' rotateY(30deg)';
   }
@@ -173,7 +169,7 @@ Webviews.write = (el, chosen, items, mode, win) => {
     el.style.transition = 'transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
     el.style.transform = cssTranslate(0, calcOffset(win.height, i), 0);
   }
-};
+});
 
 Webviews.service = send => msg => {
   if (msg.type === 'mousedown' && msg.target.dataset.webviewIndex) {
@@ -184,30 +180,33 @@ Webviews.service = send => msg => {
   }
 }
 
-const bodyEl = document.querySelector('body');
-const webviewsEl = document.getElementById('webviews');
-const tabsEl = document.getElementById('tabs');
-
 const updateApp = (state, msg) => {
-  insert(Mode.update, state, 'mode', msg);
-  insert(Chosen.update, state, 'chosen', msg);
-  return state;
+  const patch = Patch.flatten(
+    Patch.branch(Mode.update, state, msg, 'mode'),
+    Patch.branch(Chosen.update, state, msg, 'chosen')
+  );
+
+  return patch ? Change(patch, AnimationFrame.Schedule) : Change.none;
 };
 
+const writeTabs = Tabs.writer(document.getElementById('tabs'));
+const writeMode = Mode.writer(document.querySelector('body'));
+const writeWebviews = Webviews.writer(document.getElementById('webviews'));
+
 const writeApp = (state) => {
-  commit(Mode.write, bodyEl, state.mode);
-  commit(Webviews.write,
-    webviewsEl, state.chosen, state.webviews.items, state.mode, state.win);
-  commit(Tabs.write, tabsEl, state.chosen, state.webviews.items);
+  writeWebviews(state.chosen, state.webviews, state.mode, state.win);
+  writeMode(state.mode);
+  writeTabs(state.chosen, state.webviews);
 };
 
 const send = Bus((msg) => {
-  app.receive(msg);
   webviews(msg);
   mode(msg);
   keyboard(msg);
   overlay(msg);
   windowbar(msg);
+  animationframe(msg);
+  app(msg);
 });
 
 const webviews = Webviews.service(send);
@@ -215,20 +214,21 @@ const mode = Mode.service(send);
 const keyboard = keyboardService(send);
 const overlay = overlayService(send);
 const windowbar = Windowbar.service(send);
+const animationframe = AnimationFrame.service(send);
 
-const app = new App({
+const app = App({
   win: Win(window.innerWidth, window.innerHeight),
   mode: Mode('show-webview'),
   chosen: Chosen(0, 0, true),
-  webviews: Webviews([
+  webviews: [
     Webview('http://breakingsmart.com/season-1/', 'How software is eating the world'),
     Webview('http://en.wikipedia.org', 'Wikipedia'),
     Webview('https://en.wikipedia.org/wiki/Maxima_clam#/media/File:2_Tridacna_gigas.jpg', 'Maxima Clam'),
     Webview('http://breakingsmart.com/season-1/the-future-in-the-rear-view-mirror/', 'The future in a rear-view mirror')
-  ])
+  ]
 }, updateApp, writeApp, send);
 
-app.schedule();
+send(AnimationFrame.Schedule);
 
 window.addEventListener('keyup',
   event => send({type: 'keyup', keyCode: event.keyCode}));
