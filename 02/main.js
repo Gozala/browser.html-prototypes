@@ -36,14 +36,14 @@ Tabs.createTab = (webview, i) => {
   return li;
 };
 
-Tabs.writer = Writer((el, chosen, webviews) => {
-  if (!isMounted(el)) {
-    children(el, webviews.map(Tabs.createTab));
-    mounted(el, true);
-  }
+Tabs.writeSelect = (el, i) => {
+  selectClass(el.children, 'tab-selected', i);
+}
 
-  selectClass(el.children, 'tab-selected', chosen.cursor);
-});
+Tabs.mount = (el, webviews, selected) => {
+  children(el, webviews.map(Tabs.createTab));
+  Tabs.writeSelect(el, selected);
+};
 
 const overlayService = send => msg => {
   if (msg.type === 'mouseover' && msg.target.id === 'overlay') {
@@ -67,11 +67,11 @@ Mode.update = (state, msg) =>
     Mode('show-tabs') :
   null;
 
-Mode.writer = Writer((el, mode) => {
-  toggleClass(el, 'mode-show-webview', mode.value === 'show-webview');
-  toggleClass(el, 'mode-show-tabs', mode.value === 'show-tabs');
-  toggleClass(el, 'mode-show-search', mode.value === 'show-search');
-});
+Mode.write = (el, mode) => {
+  toggleClass(el, 'mode-show-webview', mode === 'show-webview');
+  toggleClass(el, 'mode-show-tabs', mode === 'show-tabs');
+  toggleClass(el, 'mode-show-search', mode === 'show-search');
+};
 
 Mode.service = send => msg => {
   if (msg.type === 'mousedown' && msg.target.classList.contains('tabs-button')) {
@@ -149,27 +149,26 @@ const calcOffset = (height, i) => -1 * ((height * i) + (40 * i));
 
 const Webviews = {};
 
-Webviews.writer = Writer((el, chosen, webviews, mode, win) => {
-  const i = chosen.cursor;
-  if (!isMounted(el)) {
-    children(el, webviews.map(Webview.create));
-    el.style.transition = 'none';
-    el.style.transform = cssTranslate(0, calcOffset(win.height, i), 0);
-    mounted(el, true);
-  }
-  else if (mode.value === 'show-tabs' && chosen.resting) {
-    el.style.transition = 'transform 600ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
-    el.style.transform = cssTranslate(0, calcOffset(win.height, i), -800) + ' rotateY(30deg)';
-  }
-  else if (mode.value === 'show-tabs') {
-    el.style.transition = 'transform 600ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
-    el.style.transform = cssTranslate(0, calcOffset(win.height, i), -3000)  + ' rotateY(30deg)';
-  }
-  else {
-    el.style.transition = 'transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
-    el.style.transform = cssTranslate(0, calcOffset(win.height, i), 0);
-  }
-});
+Webviews.mount = (el, webviews, i, height) => {
+  children(el, webviews.map(Webview.create));
+  el.style.transition = 'none';
+  el.style.transform = cssTranslate(0, calcOffset(height, i), 0);
+}
+
+Webviews.writeResting = (el, i, height) => {
+  el.style.transition = 'transform 600ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
+  el.style.transform = cssTranslate(0, calcOffset(height, i), -800) + ' rotateY(30deg)';  
+}
+
+Webviews.writeActive = (el, i, height) => {
+  el.style.transition = 'transform 600ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
+  el.style.transform = cssTranslate(0, calcOffset(height, i), -3000)  + ' rotateY(30deg)';
+}
+
+Webviews.writeShow = (el, i, height) => {
+  el.style.transition = 'transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
+  el.style.transform = cssTranslate(0, calcOffset(height, i), 0);
+}
 
 Webviews.service = send => msg => {
   if (msg.type === 'mousedown' && msg.target.dataset.webviewIndex) {
@@ -189,14 +188,34 @@ const updateApp = (state, msg) => {
   return patch ? Change(patch, AnimationFrame.Schedule) : Change.none;
 };
 
-const writeTabs = Tabs.writer(document.getElementById('tabs'));
-const writeMode = Mode.writer(document.querySelector('body'));
-const writeWebviews = Webviews.writer(document.getElementById('webviews'));
+const tabsEl = document.getElementById('tabs');
+const bodyEl = document.querySelector('body');
+const webviewsEl = document.getElementById('webviews');
 
 const writeApp = (state) => {
-  writeWebviews(state.chosen, state.webviews, state.mode, state.win);
-  writeMode(state.mode);
-  writeTabs(state.chosen, state.webviews);
+  sync(Mode.write, modified(state.mode), bodyEl, state.mode.value);
+
+  mount(Webviews.mount, webviewsEl,
+    state.webviews, state.chosen.selected, state.win.height);
+
+  if (state.mode.value === 'show-tabs' && state.chosen.resting) {
+    sync(Webviews.writeResting,
+      newest(state.mode, state.chosen),
+      webviewsEl, state.chosen.cursor, state.win.height);
+  }
+  else if (state.mode.value === 'show-tabs') {
+    sync(Webviews.writeActive,
+      newest(state.mode, state.chosen),
+      webviewsEl, state.chosen.cursor, state.win.height);
+  }
+  else {
+    sync(Webviews.writeShow,
+      newest(state.mode, state.chosen),
+      webviewsEl, state.chosen.selected, state.win.height);
+  }
+
+  sync(Tabs.writeSelect, modified(state.chosen), tabsEl, state.chosen.cursor);
+  mount(Tabs.mount, tabsEl, state.webviews, state.chosen.selected);
 };
 
 const send = Bus((msg) => {

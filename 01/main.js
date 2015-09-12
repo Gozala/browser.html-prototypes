@@ -1,7 +1,3 @@
-const mounted = (element, isMounted) =>
-  set(element, '_mounted', isMounted);
-const isMounted = (element) => !!element['_mounted'];
-
 const cssGimbal = (x, y, z, rx, ry, rz) =>
   `translate3d(${x}px, ${y}px, ${z}px) rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg)`;
 
@@ -51,15 +47,14 @@ Tabs.createTab = (webview, i) => {
   return li;
 };
 
-Tabs.writer = Writer((el, chosen, webviews) => {
-  if (!isMounted(el)) {
-    children(el, webviews.map(Tabs.createTab));
-    mounted(el, true);
-  }
-  else {
-    selectClass(el.children, 'tab-selected', chosen.cursor);
-  }
-});
+Tabs.writeSelect = (el, i) => {
+  selectClass(el.children, 'tab-selected', i);  
+}
+
+Tabs.mount = (el, webviews, selected) => {
+  children(el, webviews.map(Tabs.createTab));
+  Tabs.writeSelect(el, selected);
+};
 
 const overlayService = (send) => (msg) => {
   if (msg.type === 'mouseover' && msg.target.id === 'overlay') {
@@ -86,11 +81,11 @@ Mode.update = (state, msg) =>
     Mode('show-tabs') :
   null;
 
-Mode.writer = Writer((el, mode) => {
-  toggleClass(el, 'mode-show-webview', value(mode) === 'show-webview');
-  toggleClass(el, 'mode-show-tabs', value(mode) === 'show-tabs');
-  toggleClass(el, 'mode-show-search', value(mode) === 'show-search');
-});
+Mode.write = (el, mode) => {
+  toggleClass(el, 'mode-show-webview', mode === 'show-webview');
+  toggleClass(el, 'mode-show-tabs', mode === 'show-tabs');
+  toggleClass(el, 'mode-show-search', mode === 'show-search');
+};
 
 Mode.service = (send) => (msg) => {
   if (msg.type === 'mousedown' && msg.target.classList.contains('tabs-button')) {
@@ -164,12 +159,12 @@ Webview.create = (webview, i, webviews) => {
 
 const Webviews = {};
 
-Webviews.mount = (el, items) => {
-  children(el, items.map(Webview.create));
-  mounted(el, true);
+Webviews.mount = (el, webviews, selected) => {
+  children(el, webviews.map(Webview.create));
+  selectClass(el.children, 'webview-selected', selected);
 };
 
-Webviews.showTabsResting = (el, {x, y}) => {
+Webviews.showTabsResting = (el, x, y) => {
   // const wavex = Math.sin(frame / 101) * 15;
   // const wavey = Math.sin(frame / 103) * 15;
   // const wavez = Math.sin(frame / 97) * 30;
@@ -184,26 +179,17 @@ Webviews.showTabsResting = (el, {x, y}) => {
   );
 };
 
-Webviews.showTabs = (el) => {
+Webviews.showTabs = (el, selected) => {
+  selectClass(el.children, 'webview-selected', selected);
   el.style.transition = 'transform 1000ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
   el.style.transform = cssGimbal(0, 0, -400, 0, 0, 0);
 };
 
-Webviews.showWebview = (el) => {
+Webviews.showWebview = (el, selected) => {
+  selectClass(el.children, 'webview-selected', selected);
   el.style.transition = 'transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
   el.style.transform = cssTranslate(0, 0, 0);
 };
-
-Webviews.writer = Writer((el, mode, coords, chosen, webviews) =>
-  !isMounted(el) ?
-    Webviews.mount(el, webviews) :
-  value(mode) === 'show-tabs' && chosen.isResting ?
-    render(Webviews.showTabsResting, el, coords) :
-  value(mode) === 'show-tabs' ?
-    render(Webviews.showTabs, el, mode) :
-  value(mode) === 'show-webview' ?
-    render(Webviews.showWebview, el, mode) :
-  null);
 
 Webviews.service = (send) => (msg) => {
   if (msg.type === 'mousedown' && msg.target.dataset.webviewIndex) {
@@ -231,14 +217,33 @@ const updateApp = (state, msg) => {
     Change(frame);
 }
 
-const writeMode = Mode.writer(document.querySelector('body'));
-const writeWebviews = Webviews.writer(document.getElementById('webviews'));
-const writeTabs = Tabs.writer(document.getElementById('tabs'));
+const bodyEl = document.querySelector('body');
+const webviewsEl = document.getElementById('webviews');
+const tabsEl = document.getElementById('tabs');
 
 const writeApp = (state) => {
-  writeMode(state.mode);
-  writeWebviews(state.mode, state.coords, state.chosen, state.webviews);
-  writeTabs(state.chosen, state.webviews);
+  sync(Mode.write, modified(state.mode), bodyEl, state.mode.value);
+
+  mount(Webviews.mount, webviewsEl, state.webviews, state.chosen.selected);
+
+  if (state.mode.value === 'show-tabs' && state.chosen.isResting) {
+    sync(Webviews.showTabsResting,
+      newest(state.mode, state.chosen, state.coords),
+      webviewsEl, state.coords.x, state.coords.y);
+  }
+  else if (state.mode.value === 'show-tabs') {
+    sync(Webviews.showTabs,
+      newest(state.mode, state.chosen),
+      webviewsEl, state.chosen.selected);
+  }
+  else if (state.mode.value === 'show-webview') {
+    sync(Webviews.showWebview,
+      newest(state.mode, state.chosen),
+      webviewsEl, state.chosen.selected);
+  }
+
+  sync(Tabs.writeSelect, modified(state.chosen), tabsEl, state.chosen.cursor);
+  mount(Tabs.mount, tabsEl, state.webviews, state.chosen.selected);
 };
 
 const send = Bus(msg => {

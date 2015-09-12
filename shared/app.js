@@ -30,12 +30,12 @@ const sync = (write, timestamp, element, ...rest) => {
   }
 }
 
-// Render an element if any property changes.
-const render = (write, element, ...rest) =>
-  sync(write, newest(...rest), element, ...rest);
-
-const Writer = (write) => (element) => (...rest) =>
-  render(write, element, ...rest);
+const mount = (write, element, ...rest) => {
+  if (!element._mounted) {
+    write(element, ...rest);
+    element._mounted = true;
+  }  
+}
 
 const exists = (x) => x != null;
 const compact = (array) => array.filter(exists);
