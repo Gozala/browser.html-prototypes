@@ -1,11 +1,3 @@
-const _ = id => document.getElementById(id);
-const $$ = (selector) => document.querySelector(selector);
-
-// Apply a side effect to `n` items.
-const sets = (f, n, ...rest) => {
-  for (var i = 0; i < n.length; i++) f(n[i], ...rest);
-}
-
 const children = (parent, children) => {
   for (var i = 0; i < children.length; i++) {
     parent.appendChild(children[i]);

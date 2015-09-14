@@ -4,18 +4,33 @@ const isMounted = (element) => !!element['mounted@widget'];
 
 const cssTranslate = (x, y, z) => `translate3d(${x}px, ${y}px, ${z}px)`;
 
-// Events
-const Preview = (index) => ({type: 'preview', index: Number(index)});
-const RestPreviews = (index) => ({type: 'rest-previews'});
-const ChangeMode = (mode) => ({type: 'change-mode', mode});
-const ChangeWebview = (index) => ({type: 'change-webview', index: Number(index)});
-const EscKey = () => ({type: 'esc'});
+const isEsc = (msg) =>
+  msg.type === 'keyup' && msg.keyCode === 27;
 
-const keyboardService = send => msg => {
-  if (msg.type === 'keyup' && msg.keyCode === 27) {
-    send(EscKey());
-  }
-};
+const isTabButtonMousedown = (msg) =>
+  msg.type === 'mousedown' && msg.target.classList.contains('tabs-button');
+
+const isOverlayMousedown = (msg) =>
+  msg.type === 'mousedown' && msg.target.id === 'overlay';
+
+const isOverlayMouseover = (msg) =>
+  msg.type === 'mouseover' && msg.target.id === 'overlay';
+
+const isOverlayMouseout = (msg) =>
+  msg.type === 'mouseout' && msg.target.id === 'overlay';
+
+const getWebviewChangeIndex = (msg) =>
+  msg.target && msg.target.dataset && msg.target.dataset.webviewIndex != null ?
+    Number(msg.target.dataset.webviewIndex) : -1;
+
+const isClickWebviewChange = (msg) =>
+  msg.type === 'mousedown' && getWebviewChangeIndex(msg) !== -1;
+
+const bound = (n, min, max) => Math.min(Math.max(n, min), max);
+
+// Determine progress of timed action
+const progress = (start, now, duration) =>
+  bound((now - start) / duration, 0, 1);
 
 const Win = (width, height) => model({width, height});
 
@@ -45,43 +60,38 @@ Tabs.mount = (el, webviews, selected) => {
   Tabs.writeSelect(el, selected);
 };
 
-const overlayService = send => msg => {
-  if (msg.type === 'mouseover' && msg.target.id === 'overlay') {
-    send(RestPreviews());
-  }
-  else if (msg.type === 'mousedown' && msg.target.id === 'overlay') {
-    send(ChangeWebview(-1));
-  }
-}
+const Mode = (mode) => model({value: mode});
 
-const Mode = (mode) => snapshot(mode);
+Mode.is = (state, mode) => state.value === mode;
 
 Mode.update = (state, msg) =>
-  msg.type === 'change-mode' && msg.mode !== value(state) ?
-    Mode(msg.mode) :
-  msg.type === 'esc' && value(state) === 'show-search' ?
-    Mode('show-webview') :
-  msg.type === 'esc' && value(state) === 'show-tabs' ?
-    Mode('show-webview') :
-  msg.type === 'esc' && value(state) === 'show-webview' ?
+  (isOverlayMouseover(msg) &&
+  Mode.is(state, 'show-tabs') &&
+  progress(state.created, performance.now(), 400) === 1) ?
+    Mode('show-tabs-resting') :
+  isOverlayMouseout(msg) && Mode.is(state, 'show-tabs-resting') ?
     Mode('show-tabs') :
-  null;
+  isTabButtonMousedown(msg) ?
+    Mode('show-tabs') :
+  isClickWebviewChange(msg) ?
+    Mode('show-webview') :
+  isOverlayMousedown(msg) && Mode.is(state, 'show-tabs') ?
+    Mode('show-webview') :
+  isOverlayMousedown(msg) && Mode.is(state, 'show-tabs-resting') ?
+    Mode('show-webview') :
+  isEsc(msg) && Mode.is(state, 'show-tabs') ?
+    Mode('show-webview') :
+  isEsc(msg) && Mode.is(state, 'show-tabs-resting') ?
+    Mode('show-webview') :
+  isEsc(msg) && Mode.is(state, 'show-webview') ?
+    Mode('show-tabs') :
+  state;
 
 Mode.write = (el, mode) => {
   toggleClass(el, 'mode-show-webview', mode === 'show-webview');
   toggleClass(el, 'mode-show-tabs', mode === 'show-tabs');
   toggleClass(el, 'mode-show-search', mode === 'show-search');
 };
-
-Mode.service = send => msg => {
-  if (msg.type === 'mousedown' && msg.target.classList.contains('tabs-button')) {
-    send(ChangeMode('show-tabs'));
-  }
-
-  if (msg.type === 'change-webview') {
-    send(ChangeMode('show-webview'));
-  }
-}
 
 const Windowbar = {};
 Windowbar.create = (webview, length) => {
@@ -103,12 +113,6 @@ Windowbar.create = (webview, length) => {
   header.appendChild(button);
 
   return header;
-}
-
-Windowbar.service = send => msg => {
-  if (msg.type === 'mousedown' && msg.target === 'tabs-button') {
-    send(ChangeMode('show-tabs'));
-  };
 }
 
 const Webview = (url, title) => model({url, title, id: url});
@@ -133,17 +137,15 @@ const Chosen = (cursor, selected, resting) =>
   model({cursor, selected, resting});
 
 Chosen.update = (state, msg) =>
-  msg.type === 'change-webview' && msg.index === -1 ?
-    Chosen(state.cursor, state.cursor, true) :
-  msg.type === 'change-webview' ?
-    Chosen(msg.index, msg.index, true) :
-  msg.type === 'preview' ?
-    Chosen(msg.index, state.selected, false) :
-  msg.type === 'rest-previews' ?
-    Chosen(state.cursor, state.selected, true) :
-  msg.type === 'esc' ?
-    Chosen(state.selected, state.selected, true) :
-  null;
+  isOverlayMouseover(msg) ?
+    Chosen(state.selected, state.selected) :
+  isClickWebviewChange(msg) ?
+    Chosen(getWebviewChangeIndex(msg), getWebviewChangeIndex(msg)) :
+  msg.type === 'mouseover' && getWebviewChangeIndex(msg) !== -1 ?
+    Chosen(getWebviewChangeIndex(msg), state.selected) :
+  isEsc(msg) ?
+    Chosen(state.selected, state.selected) :
+  state;
 
 const calcOffset = (height, i) => -1 * ((height * i) + (40 * i));
 
@@ -170,29 +172,19 @@ Webviews.writeShow = (el, i, height) => {
   el.style.transform = cssTranslate(0, calcOffset(height, i), 0);
 }
 
-Webviews.service = send => msg => {
-  if (msg.type === 'mousedown' && msg.target.dataset.webviewIndex) {
-    send(ChangeWebview(msg.target.dataset.webviewIndex));
-  }
-  else if (msg.type === 'mouseover' && msg.target.dataset.webviewIndex) {
-    send(Preview(msg.target.dataset.webviewIndex));
-  }
-}
+const State = {};
 
-const updateApp = (state, msg) => {
-  const patch = Patch.flatten(
-    Patch.branch(Mode.update, state, msg, 'mode'),
-    Patch.branch(Chosen.update, state, msg, 'chosen')
-  );
-
-  return patch ? Change(patch, AnimationFrame.Schedule) : Change.none;
+State.update = (state, msg) => {
+  state.mode = Mode.update(state.mode, msg);
+  state.chosen = Chosen.update(state.chosen, msg);
+  return state;
 };
 
 const tabsEl = document.getElementById('tabs');
 const bodyEl = document.querySelector('body');
 const webviewsEl = document.getElementById('webviews');
 
-const writeApp = (state) => {
+State.write = (state) => {
   sync(Mode.write, modified(state.mode), bodyEl, state.mode.value);
 
   mount(Webviews.mount, webviewsEl,
@@ -218,23 +210,6 @@ const writeApp = (state) => {
   mount(Tabs.mount, tabsEl, state.webviews, state.chosen.selected);
 };
 
-const send = Bus((msg) => {
-  webviews(msg);
-  mode(msg);
-  keyboard(msg);
-  overlay(msg);
-  windowbar(msg);
-  animationframe(msg);
-  app(msg);
-});
-
-const webviews = Webviews.service(send);
-const mode = Mode.service(send);
-const keyboard = keyboardService(send);
-const overlay = overlayService(send);
-const windowbar = Windowbar.service(send);
-const animationframe = AnimationFrame.service(send);
-
 const app = App({
   win: Win(window.innerWidth, window.innerHeight),
   mode: Mode('show-webview'),
@@ -245,12 +220,11 @@ const app = App({
     Webview('https://en.wikipedia.org/wiki/Maxima_clam#/media/File:2_Tridacna_gigas.jpg', 'Maxima Clam'),
     Webview('http://breakingsmart.com/season-1/the-future-in-the-rear-view-mirror/', 'The future in a rear-view mirror')
   ]
-}, updateApp, writeApp, send);
+}, State.update, State.write);
 
-send(AnimationFrame.Schedule);
+App.loop(app.render);
 
-window.addEventListener('keyup',
-  event => send({type: 'keyup', keyCode: event.keyCode}));
-window.addEventListener('mousedown', send);
-window.addEventListener('mouseover', send);
-window.addEventListener('mouseout', send);
+window.addEventListener('keyup', app.send);
+window.addEventListener('mousedown', app.send);
+window.addEventListener('mouseover', app.send);
+window.addEventListener('mouseout', app.send);
