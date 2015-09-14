@@ -137,8 +137,8 @@ const Chosen = (cursor, selected, resting) =>
   model({cursor, selected, resting});
 
 Chosen.update = (state, msg) =>
-  isOverlayMouseover(msg) ?
-    Chosen(state.selected, state.selected) :
+  isOverlayMousedown(msg) ?
+    Chosen(state.cursor, state.cursor) :
   isClickWebviewChange(msg) ?
     Chosen(getWebviewChangeIndex(msg), getWebviewChangeIndex(msg)) :
   msg.type === 'mouseover' && getWebviewChangeIndex(msg) !== -1 ?
