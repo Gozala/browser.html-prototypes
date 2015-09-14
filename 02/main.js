@@ -60,7 +60,7 @@ Tabs.mount = (el, webviews, selected) => {
   Tabs.writeSelect(el, selected);
 };
 
-const Mode = (mode) => model({value: mode});
+const Mode = (mode) => model({value: mode, created: performance.now()});
 
 Mode.is = (state, mode) => state.value === mode;
 
@@ -90,6 +90,7 @@ Mode.update = (state, msg) =>
 Mode.write = (el, mode) => {
   toggleClass(el, 'mode-show-webview', mode === 'show-webview');
   toggleClass(el, 'mode-show-tabs', mode === 'show-tabs');
+  toggleClass(el, 'mode-show-tabs-resting', mode === 'show-tabs-resting');
   toggleClass(el, 'mode-show-search', mode === 'show-search');
 };
 
@@ -190,7 +191,7 @@ State.write = (state) => {
   mount(Webviews.mount, webviewsEl,
     state.webviews, state.chosen.selected, state.win.height);
 
-  if (state.mode.value === 'show-tabs' && state.chosen.resting) {
+  if (state.mode.value === 'show-tabs-resting') {
     sync(Webviews.writeResting,
       newest(state.mode, state.chosen),
       webviewsEl, state.chosen.cursor, state.win.height);

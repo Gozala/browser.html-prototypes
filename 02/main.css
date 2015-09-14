@@ -63,7 +63,8 @@ body {
   z-index: 10;
 }
 
-.mode-show-tabs .overlay {
+.mode-show-tabs .overlay,
+.mode-show-tabs-resting .overlay {
   pointer-events: all;
 }
 
@@ -124,7 +125,8 @@ body {
   z-index: 11;
 }
 
-.mode-show-tabs > .sidebar {
+.mode-show-tabs > .sidebar,
+.mode-show-tabs-resting > .sidebar {
   transform: translateX(0) rotateY(0deg);
 }
 
