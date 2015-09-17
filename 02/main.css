@@ -11,29 +11,51 @@ body {
   width: 100vw;
 }
 
+.windowctl-close,
+.windowctl-min,
+.windowctl-max {
+  position: fixed;
+  border-radius: 50%;
+  height: 12px;
+  width: 12px;
+  z-index: 100;
+}
+.windowctl-close {
+  left: 8px;
+  top: 7px;
+  background: #FF6057;
+  border: 0.5px solid #E1453F;
+}
+.windowctl-min {
+  left: 28px;
+  top: 7px;
+  background: #FFBE2F;
+  border: 0.5px solid #E0A637;
+}
+.windowctl-max {
+  left: 48px;
+  top: 7px;
+  background: #28CA40;
+  border: 0.5px solid #1BAC2C;
+}
+
 .windowbar {
-  background: #fff;
-  border-bottom: 1px solid rgba(0,0,0,0.07);
   height: 27px;
   position: relative;
   width: 100vw;
 }
 
 .tabs-button {
-  font-size: 10px;
-  font-weight: bold;
-  border: 2px solid rgba(0,0,0,0.3);
-  border-radius: 3px;
-  height: 16px;
-  line-height: 16px;
-  width: 16px;
+  background: no-repeat center/14px url(../assets/hamburger.png);
+  height: 13px;
+  width: 14px;
   position: absolute;
-  text-align: center;
-  top: 3px;
-  right: 3px;
+  top: 7px;
+  right: 7px;
 }
 
 .location {
+  font-weight: bold;
   border-radius: 5px;
   color: rgba(0,0,0,0.8);
   font-size: 12px;
@@ -47,7 +69,7 @@ body {
   width: 250px;
 }
 .location:hover {
-  background: #EBEEF2;
+  background: rgba(0,0,0,0.06);
 }
 
 .overlay {
@@ -144,14 +166,15 @@ body {
   width: 100vw;
   height: calc(100vh);
   margin: 0 0 40px;
-  transition: opacity 200ms cubic-bezier(0.215, 0.610, 0.355, 1.000);
+  transition: opacity 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000);
   z-index: 2;
 }
 
-.webview > iframe {
+.webview > .iframe {
+  background-size: cover;
   border: 0;
   display: block;
   margin: 0;
   width: 100%;
-  height: calc(100% - 27px);
+  height: 100%;
 }

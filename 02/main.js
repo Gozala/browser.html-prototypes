@@ -4,6 +4,8 @@ const isMounted = (element) => !!element['mounted@widget'];
 
 const cssTranslate = (x, y, z) => `translate3d(${x}px, ${y}px, ${z}px)`;
 
+const cssUrl = (url) => url && url.length ? `url(${url})` : 'none';
+
 const isEsc = (msg) =>
   msg.type === 'keyup' && msg.keyCode === 27;
 
@@ -109,25 +111,30 @@ Windowbar.create = (webview, length) => {
 
   const button = document.createElement('div');
   button.setAttribute('class', 'tabs-button');
-  button.appendChild(document.createTextNode(length));
 
   header.appendChild(button);
 
   return header;
 }
 
-const Webview = (url, title) => model({url, title, id: url});
+const Webview = (url, favicon, title, color) => model({
+  url, favicon, title,
+  id: url,
+  color: (color || '#fff')
+});
 
 Webview.create = (webview, i, webviews) => {
   const div = document.createElement('div');
   div.setAttribute('class', 'webview');
+  div.style.backgroundColor = webview.color;
 
   div.appendChild(Windowbar.create(webview, webviews.length));
 
-  const iframe = document.createElement('iframe');
-  iframe.setAttribute('mozbrowser', 'mozbrowser');
-  iframe.setAttribute('remote', 'remote');
-  iframe.setAttribute('src', webview.url);
+  const iframe = document.createElement('div');
+  iframe.setAttribute('class', 'iframe');
+  // iframe.setAttribute('mozbrowser', 'mozbrowser');
+  // iframe.setAttribute('remote', 'remote');
+  iframe.style.backgroundImage = cssUrl(webview.url);
 
   div.appendChild(iframe);
 
@@ -164,7 +171,7 @@ Webviews.writeResting = (el, i, height) => {
 }
 
 Webviews.writeActive = (el, i, height) => {
-  el.style.transition = 'transform 600ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
+  el.style.transition = 'transform 600ms cubic-bezier(0.250, 0.460, 0.450, 0.940';
   el.style.transform = cssTranslate(0, calcOffset(height, i), -3000)  + ' rotateY(30deg)';
 }
 
@@ -216,10 +223,10 @@ const app = App({
   mode: Mode('show-webview'),
   chosen: Chosen(0, 0, true),
   webviews: [
-    Webview('http://breakingsmart.com/season-1/', 'How software is eating the world'),
-    Webview('http://en.wikipedia.org', 'Wikipedia'),
-    Webview('https://en.wikipedia.org/wiki/Maxima_clam#/media/File:2_Tridacna_gigas.jpg', 'Maxima Clam'),
-    Webview('http://breakingsmart.com/season-1/the-future-in-the-rear-view-mirror/', 'The future in a rear-view mirror')
+    Webview('../demo/10.png', '', 'Lego Unveils Avengers set - Quartz', '#fff'),
+    Webview('../demo/05.png', '../demo/rendi.png', 'Crane Brothers', '#cfebec'),
+    Webview('../demo/06.png', '../demo/hardgraft.png', 'BokicaBo', '#d9aa16'),
+    Webview('../demo/11.png', '../demo/humanco.png', 'Human Co'),
   ]
 }, State.update, State.write);
 
