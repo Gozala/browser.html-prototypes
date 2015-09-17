@@ -178,8 +178,6 @@ Chosen.update = (state, msg) =>
     Chosen(state.selected, state.selected) :
   isClickWebviewChange(msg) ?
     Chosen(getWebviewChangeIndex(msg), getWebviewChangeIndex(msg)) :
-  msg.type === 'mouseover' && getWebviewChangeIndex(msg) !== -1 ?
-    Chosen(getWebviewChangeIndex(msg), state.selected) :
   isEsc(msg) ?
     Chosen(state.selected, state.selected) :
   state;
@@ -223,7 +221,7 @@ Webviews.showTabsResting = (el, x, y) => {
   el.style.transform = cssGimbal(
     (x * -0.02),
     (y * -0.07),
-    -600,
+    -400,
     (-1 * (y * 0.02)),
     (x * 0.02),
     0
@@ -233,7 +231,7 @@ Webviews.showTabsResting = (el, x, y) => {
 Webviews.showTabs = (el, selected) => {
   selectClass(el.children, 'webview-selected', selected);
   el.style.transition = 'transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
-  el.style.transform = cssGimbal(-100, 0, -800, 0, 12, 0);
+  el.style.transform = cssGimbal(0, 0, -600, 0, 0, 0);
 };
 
 Webviews.showWebview = (el, selected) => {

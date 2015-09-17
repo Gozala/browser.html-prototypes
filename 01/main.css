@@ -12,7 +12,6 @@ body {
 }
 
 .windowbar {
-  border-bottom: 1px solid rgba(0,0,0,0.07);
   height: 27px;
   opacity: 1;
   position: absolute;
@@ -60,6 +59,7 @@ body {
 }
 
 .location {
+  font-weight: bold;
   border-radius: 5px;
   color: rgba(0,0,0,0.8);
   font-size: 12px;
@@ -121,6 +121,7 @@ body {
 }
 
 .tab {
+  border-left: 4px solid transparent;
   color: rgba(255,255,255,0.7);
   display: block;
   font-size: 14px;
@@ -128,17 +129,6 @@ body {
   position: relative;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.tab::before {
-  background-color: #4A90E2;
-  border-radius: 0 3px 3px 0;
-  content: '';
-  left: 0;
-  height: 50px;
-  position: absolute;
-  transform: translateX(-5px);
-  width: 5px;
-  z-index: 2;
 }
 
 .tab-content {
@@ -199,15 +189,14 @@ body {
   background: #ddd;
   border-radius: 3px;
   height: 16px;
-  left: 17px;
+  left: 16px;
   position: absolute;
   top: 17px;
   width: 16px;
 }
 
-.tab-selected::before {
-  transition: transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000);
-  transform: translateX(0);
+.tab-selected {
+  border-color: #3D91F2;
 }
 
 .favicon {
@@ -221,7 +210,7 @@ body {
 
 .sidebar {
   background: #2E3D4D;
-  box-shadow: rgba(0, 0, 0, 0.6) -50px 0 100px;
+  box-shadow: rgba(0, 0, 0, 0.5) -80px 0 100px;
   color: rgba(255,255,255,0.8);
   overflow: hidden;
   position: absolute;
@@ -231,6 +220,17 @@ body {
   transform: translateX(560px);
   transition: transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000);
   z-index: 11;
+}
+
+.sidebar::before {
+  background: rgba(0,0,0,0.15);
+  content: '';
+  height: 100vh;
+  left: 0;
+  position: absolute;
+  width: 4px;
+  top: 0;
+  z-index: 2;
 }
 
 .mode-show-tabs > .sidebar {
@@ -248,6 +248,32 @@ body {
   height: 50px;
   position: absolute;
   width: 100%;
+}
+
+.sidebar-toolbar .icon-pin {
+  background: no-repeat center/12.5px url(../assets/pin.png) #3E5166;
+  border-left: 4px solid transparent;
+  height: 50px;
+  width: 50px;
+  position: absolute;
+}
+
+.sidebar-toolbar .icon-add {
+  background: no-repeat center/17px url(../assets/plus.png) #3E5166;
+  height: 50px;
+  width: 50px;
+  position: absolute;
+  right: 0;
+}
+
+.sidebar-toolbar .icon-add,
+.sidebar-toolbar .icon-pin {
+  transition: background-color 200ms ease-out;
+}
+
+.sidebar-toolbar .icon-add:hover,
+.sidebar-toolbar .icon-pin:hover {
+  background-color: #3D91F2;
 }
 
 .webviews {
