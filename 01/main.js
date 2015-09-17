@@ -1,6 +1,8 @@
 const cssGimbal = (x, y, z, rx, ry, rz) =>
   `translate3d(${x}px, ${y}px, ${z}px) rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg)`;
 
+const cssUrl = (url) => `url(${url})`;
+
 // Checks for update functions
 
 const isEsc = (msg) =>
@@ -9,14 +11,17 @@ const isEsc = (msg) =>
 const isTabButtonMousedown = (msg) =>
   msg.type === 'mousedown' && msg.target.classList.contains('tabs-button');
 
+const isEventOnId = (msg, type, id) =>
+  msg.type === type && msg.target.id === id;
+
 const isOverlayMousedown = (msg) =>
-  msg.type === 'mousedown' && msg.target.id === 'overlay';
+  isEventOnId(msg, 'mousedown', 'overlay');
 
 const isOverlayMouseover = (msg) =>
-  msg.type === 'mouseover' && msg.target.id === 'overlay';
+  isEventOnId(msg, 'mouseover', 'overlay');
 
 const isOverlayMouseout = (msg) =>
-  msg.type === 'mouseout' && msg.target.id === 'overlay';
+  isEventOnId(msg, 'mouseout', 'overlay');
 
 const getWebviewChangeIndex = (msg) =>
   msg.target && msg.target.dataset && msg.target.dataset.webviewIndex != null ?
@@ -46,7 +51,16 @@ Coords.update = (state, msg) =>
     Coords(msg.clientX, msg.clientY, state.width, state.height) :
   state;
 
-const Tabs = {};
+const Tabs = (isImmediate) => model({isImmediate});
+
+Tabs.update = (state, msg) =>
+  isTabButtonMousedown(msg) ?
+    Tabs(!Tabs.isImmediate) :
+  !state.isImmediate ?
+    Tabs(Tabs.isImmediate) :
+  state;
+
+Tabs.isImmediate = true;
 
 Tabs.createTab = (webview, i) => {
   const favicon = document.createElement('div');
@@ -54,14 +68,43 @@ Tabs.createTab = (webview, i) => {
 
   const text = document.createTextNode(webview.title);
 
+  const div = document.createElement('div');
+  div.className = 'tab-content';
+  div.appendChild(favicon);
+  div.appendChild(text);
+
+  const bookmark = document.createElement('div');
+  bookmark.className = 'icon-bookmark';
+
+  const close = document.createElement('div');
+  close.className = 'icon-close';
+
   const li = document.createElement('li');
   li.className = 'tab';
   li.dataset.webviewIndex = i;
-  li.appendChild(favicon);
-  li.appendChild(text);
+  li.appendChild(div);
+  li.appendChild(bookmark);
+  li.appendChild(close);
 
   return li;
 };
+
+Tabs.writeShow = (el, mode) => {
+  Array.forEach(el.children, (el, i) => {
+    const delay = 70 * i;
+    el.style.transition =
+      'transform 200ms cubic-bezier(0.215, 0.610, 0.355, 1.000), opacity 150ms linear';
+    el.style.transitionDelay = delay + 'ms';
+    el.style.transform = cssGimbal(0, 0, 0, 0, 0, 0);
+  });
+}
+
+Tabs.writeHide = (el, mode) => {
+  Array.forEach(el.children, (el, i) => {
+    el.style.transition = 'transform 0ms linear 500ms';
+    el.style.transform = cssGimbal(200, 20, 0, 0, 0, 0);
+  });
+}
 
 Tabs.writeSelect = (el, i) => {
   selectClass(el.children, 'tab-selected', i);  
@@ -81,7 +124,7 @@ Mode.update = (state, msg) =>
   Mode.is(state, 'show-tabs') &&
   progress(state.created, performance.now(), 400) === 1) ?
     Mode('show-tabs-resting') :
-  isOverlayMouseout(msg) && Mode.is(state, 'show-tabs-resting') ?
+  isEventOnId(msg, 'mouseover', 'sidebar') && Mode.is(state, 'show-tabs-resting') ?
     Mode('show-tabs') :
   isTabButtonMousedown(msg) ?
     Mode('show-tabs') :
@@ -121,7 +164,6 @@ Windowbar.create = (webview, length) => {
 
   const button = document.createElement('div');
   button.setAttribute('class', 'tabs-button');
-  button.appendChild(document.createTextNode(length));
 
   header.appendChild(button);
 
@@ -142,18 +184,24 @@ Chosen.update = (state, msg) =>
     Chosen(state.selected, state.selected) :
   state;
 
-const Webview = (url, title) => model({url, title, id: url});
+const Webview = (url, title, color) => model({
+  url, title,
+  id: url,
+  color: (color || '#fff')
+});
 
 Webview.create = (webview, i, webviews) => {
   const div = document.createElement('div');
   div.setAttribute('class', 'webview');
+  div.style.backgroundColor = webview.color;
 
   div.appendChild(Windowbar.create(webview, webviews.length));
 
-  const iframe = document.createElement('iframe');
-  iframe.setAttribute('mozbrowser', 'mozbrowser');
-  iframe.setAttribute('remote', 'remote');
-  iframe.setAttribute('src', webview.url);
+  const iframe = document.createElement('div');
+  iframe.setAttribute('class', 'iframe');
+  // iframe.setAttribute('mozbrowser', 'mozbrowser');
+  // iframe.setAttribute('remote', 'remote');
+  iframe.style.backgroundImage = cssUrl(webview.url);
 
   div.appendChild(iframe);
 
@@ -175,7 +223,7 @@ Webviews.showTabsResting = (el, x, y) => {
   el.style.transform = cssGimbal(
     (x * -0.02),
     (y * -0.07),
-    -800,
+    -600,
     (-1 * (y * 0.02)),
     (x * 0.02),
     0
@@ -185,7 +233,7 @@ Webviews.showTabsResting = (el, x, y) => {
 Webviews.showTabs = (el, selected) => {
   selectClass(el.children, 'webview-selected', selected);
   el.style.transition = 'transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
-  el.style.transform = cssGimbal(-200, 0, -400, 0, 20, 0);
+  el.style.transform = cssGimbal(-100, 0, -800, 0, 12, 0);
 };
 
 Webviews.showWebview = (el, selected) => {
@@ -230,6 +278,9 @@ State.write = (state, dt, frame) => {
   mount(Webviews.mount, webviewsEl, state.webviews, state.chosen.selected);
 
   if (state.mode.value === 'show-tabs-resting') {
+    // sync(Tabs.writeShow,
+    //   modified(state.mode),
+    //   tabsEl, state.mode.value);
     sync(Webviews.showTabsResting,
       newest(state.mode, state.chosen, state.coords),
       webviewsEl, state.coords.x, state.coords.y);
@@ -238,8 +289,14 @@ State.write = (state, dt, frame) => {
     sync(Webviews.showTabs,
       newest(state.mode, state.chosen),
       webviewsEl, state.chosen.selected);
+    // sync(Tabs.writeShow,
+    //   modified(state.mode),
+    //   tabsEl, state.mode.value);
   }
   else if (state.mode.value === 'show-webview') {
+    // sync(Tabs.writeHide,
+    //   modified(state.mode),
+    //   tabsEl, state.mode.value);
     sync(Webviews.showWebview,
       newest(state.mode, state.chosen),
       webviewsEl, state.chosen.selected);
@@ -253,11 +310,13 @@ const app = App({
   coords: Coords(0, 0, window.innerWidth, window.innerHeight),
   mode: Mode('show-webview'),
   chosen: Chosen(0, 0),
+  tabs: Tabs(Tabs.isImmediate),
   webviews: [
-    Webview('http://breakingsmart.com/season-1/', 'How software is eating the world'),
-    Webview('http://en.wikipedia.org', 'Wikipedia'),
-    Webview('https://en.wikipedia.org/wiki/Maxima_clam#/media/File:2_Tridacna_gigas.jpg', 'Maxima Clam'),
-    Webview('http://breakingsmart.com/season-1/the-future-in-the-rear-view-mirror/', 'The future in a rear-view mirror')
+    Webview('../demo/04.png', 'Rendi'),
+    Webview('../demo/01.png', 'Hard Graft', '#dadbd2'),
+    Webview('../demo/03.png', 'Human Co'),
+    Webview('../demo/02.png', 'House Paperweight - Sitka and Spruce', '#eee'),
+    Webview('../demo/02.png', 'Misc', '#eee')
   ]
 }, State.update, State.write);
 

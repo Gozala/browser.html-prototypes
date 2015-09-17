@@ -1,5 +1,5 @@
 body {
-  background: #273340;
+  background: #263340;
   color: #444;
   font: 12px/1.5 "Helvetica Neue", sans-serif;
   height: 100vh;
@@ -12,7 +12,6 @@ body {
 }
 
 .windowbar {
-  background: #fff;
   border-bottom: 1px solid rgba(0,0,0,0.07);
   height: 27px;
   opacity: 1;
@@ -25,62 +24,32 @@ body {
   border-bottom: transparent;
 }
 
-.results {
-  background: #fff;
-  box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.15);
-  min-height: calc(100vh - 200px);
-  opacity: 0;
-  position: absolute;
-  pointer-events: none;
-  width: 100vw;
-  transition: opacity 150ms cubic-bezier(0.215, 0.610, 0.355, 1.000);
-  z-index: 11;
+.windowctl-close,
+.windowctl-min,
+.windowctl-max {
+  position: fixed;
+  border-radius: 50%;
+  height: 12px;
+  width: 12px;
+  z-index: 100;
 }
-
-.mode-show-search .results {
-  opacity: 1;
-  pointer-events: all;
+.windowctl-close {
+  left: 8px;
+  top: 7px;
+  background: #FF6057;
+  border: 0.5px solid #E1453F;
 }
-
-.favorites {
-  height: 228px;
-  margin: 85px auto 40px;
-  width: 510px;
-  perspective: 1000px;
+.windowctl-min {
+  left: 28px;
+  top: 7px;
+  background: #FFBE2F;
+  border: 0.5px solid #E0A637;
 }
-
-.favorite {
-  background: #ddd;
-  border-radius: 6px;
-  float: left;
-  height: 94px;
-  margin: 10px;
-  opacity: 0;
-  transform: rotateY(45deg) rotateZ(45deg);
-  transition: transform 2000ms cubic-bezier(0.215, 0.610, 0.355, 1.000),
-              opacity 2000ms cubic-bezier(0.215, 0.610, 0.355, 1.000);
-  width: 150px;
-}
-
-.mode-show-search .favorite {
-  opacity: 1;
-  transform: rotateY(0deg) rotateZ(0deg);
-}
-
-.favorite:nth-child(2) {
-  transition-delay: 200ms;
-}
-.favorite:nth-child(3) {
-  transition-delay: 300ms;
-}
-.favorite:nth-child(4) {
-  transition-delay: 400ms;
-}
-.favorite:nth-child(5) {
-  transition-delay: 500ms;
-}
-.favorite:nth-child(6) {
-  transition-delay: 600ms;
+.windowctl-max {
+  left: 48px;
+  top: 7px;
+  background: #28CA40;
+  border: 0.5px solid #1BAC2C;
 }
 
 .favorite-icon {
@@ -104,7 +73,7 @@ body {
   width: 250px;
 }
 .location:hover {
-  background: #EBEEF2;
+  background: rgba(0,0,0,0.06);
 }
 
 .mode-show-search .location {
@@ -113,17 +82,12 @@ body {
 }
 
 .tabs-button {
-  font-size: 10px;
-  font-weight: bold;
-  border: 2px solid rgba(0,0,0,0.3);
-  border-radius: 3px;
-  height: 16px;
-  line-height: 16px;
-  width: 16px;
+  background: no-repeat center/14px url(../assets/hamburger.png);
+  height: 13px;
+  width: 14px;
   position: absolute;
-  text-align: center;
-  top: 3px;
-  right: 3px;
+  top: 7px;
+  right: 7px;
 }
 
 .overlay {
@@ -140,63 +104,131 @@ body {
 }
 
 .mode-show-tabs .overlay,
-.mode-show-tabs-resting .overlay,
 .mode-show-search .overlay {
-  opacity: 0.15;
+  opacity: 0.1;
   pointer-events: all;
 }
 
+.mode-show-tabs-resting .overlay {
+  pointer-events: all;  
+}
+
+
 .tabs {
   list-style: none;
-  margin: 20px;
+  margin: 0;
   padding: 0;
 }
 
 .tab {
-  border-top: 1px solid rgba(0,0,0,0.08);
+  color: rgba(255,255,255,0.7);
   display: block;
   font-size: 14px;
-  height: 40px;
-  line-height: 40px;
   overflow: hidden;
-  padding: 0 20px 0 36px;
   position: relative;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.tab:first-child {
-  border-top-color: transparent;
+.tab::before {
+  background-color: #4A90E2;
+  border-radius: 0 3px 3px 0;
+  content: '';
+  left: 0;
+  height: 50px;
+  position: absolute;
+  transform: translateX(-5px);
+  width: 5px;
+  z-index: 2;
 }
 
-.tab-selected {
-  background: #4A90E2;
-  border-top-color: transparent;
-  border-radius: 4px;
+.tab-content {
+  height: 50px;
+  line-height: 50px;
+  padding: 0 20px 0 45px;
+  pointer-events: none;
+  position: relative;
+  transition: transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000);
+}
+
+.tab:hover {
+  background: #364759;
   color: #fff;
 }
-.tab-selected + .tab {
-  border-top-color: transparent;
+
+.tab:hover > .tab-content {
+  transform: translateX(28px);
 }
 
-.tab > .favicon {
+.tab .icon-bookmark {
+  background: no-repeat center/16px url(../assets/star.png);
+  height: 16px;
+  left: 17px;
+  opacity: 0;
+  position: absolute;
+  top: 17px;
+  transition: transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000),
+              opacity 300ms ease-out;
+  transform: translateX(-33px);
+  width: 16px;
+}
+.tab:hover .icon-bookmark {
+  opacity: 1;
+  transition: transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000),
+              opacity 400ms ease-in;
+  transform: translateX(0);
+}
+
+.tab .icon-close {
+  background: no-repeat center/10.5px url(../assets/close.png);
+  height: 16px;
+  opacity: 0;
+  position: absolute;
+  right: 14px;
+  transition: transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000),
+              opacity 300ms ease-out;
+  transform: translateX(16px);
+  top: 17px;
+  width: 16px;
+}
+.tab:hover .icon-close {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.tab .favicon {
   background: #ddd;
   border-radius: 3px;
   height: 16px;
-  left: 12px;
+  left: 17px;
   position: absolute;
-  top: 11px;
+  top: 17px;
   width: 16px;
 }
 
+.tab-selected::before {
+  transition: transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000);
+  transform: translateX(0);
+}
+
+.favicon {
+  left: 17px;
+  position: absolute;
+  top: 17px;
+  width: 16px;
+}
+
+
+
 .sidebar {
-  background: #fff;
+  background: #2E3D4D;
+  box-shadow: rgba(0, 0, 0, 0.6) -50px 0 100px;
+  color: rgba(255,255,255,0.8);
   overflow: hidden;
   position: absolute;
   right: 0;
   height: 100vh;
-  width: 460px;
-  transform: translateX(460px);
+  width: 410px;
+  transform: translateX(560px);
   transition: transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000);
   z-index: 11;
 }
@@ -206,11 +238,20 @@ body {
 }
 
 .mode-show-tabs-resting > .sidebar {
-  transform: translateX(400px);
+  transform: translateX(360px);
+}
+
+.sidebar-toolbar {
+  background: #364759;
+  bottom: 0;
+  left: 0;
+  height: 50px;
+  position: absolute;
+  width: 100%;
 }
 
 .webviews {
-  background: #000;
+  background: #fff;
   height: 100vh;
   left: 0;
   position: absolute;
@@ -233,17 +274,18 @@ body {
   padding: 27px 0 0;
   pointer-events: none;
   position: absolute;
-  transition: opacity 0ms linear 401ms;
+  transition: opacity 0ms linear 400ms;
   z-index: 2;
 }
 .webview-selected {
-  transition: opacity 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000);
+  transition: opacity 200ms cubic-bezier(0.215, 0.610, 0.355, 1.000);
   opacity: 1;
   pointer-events: all;
   z-index: 3;
 }
 
-.webview > iframe {
+.webview > .iframe {
+  background-size: cover;
   border: 0;
   display: block;
   margin: 0;
