@@ -186,10 +186,13 @@ body {
 }
 
 .tab .favicon {
-  background: #ddd;
+  background: #fff;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
   border-radius: 3px;
   height: 16px;
-  left: 16px;
+  left: 15px;
   position: absolute;
   top: 17px;
   width: 16px;
@@ -198,15 +201,6 @@ body {
 .tab-selected {
   border-color: #3D91F2;
 }
-
-.favicon {
-  left: 17px;
-  position: absolute;
-  top: 17px;
-  width: 16px;
-}
-
-
 
 .sidebar {
   background: #2E3D4D;

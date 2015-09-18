@@ -1,7 +1,7 @@
 const cssGimbal = (x, y, z, rx, ry, rz) =>
   `translate3d(${x}px, ${y}px, ${z}px) rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg)`;
 
-const cssUrl = (url) => `url(${url})`;
+const cssUrl = (url) => url && url.length ? `url(${url})` : 'none';
 
 // Checks for update functions
 
@@ -51,20 +51,12 @@ Coords.update = (state, msg) =>
     Coords(msg.clientX, msg.clientY, state.width, state.height) :
   state;
 
-const Tabs = (isImmediate) => model({isImmediate});
-
-Tabs.update = (state, msg) =>
-  isTabButtonMousedown(msg) ?
-    Tabs(!Tabs.isImmediate) :
-  !state.isImmediate ?
-    Tabs(Tabs.isImmediate) :
-  state;
-
-Tabs.isImmediate = true;
+const Tabs = {};
 
 Tabs.createTab = (webview, i) => {
   const favicon = document.createElement('div');
   favicon.className = 'favicon';
+  favicon.style.backgroundImage = cssUrl(webview.favicon);
 
   const text = document.createTextNode(webview.title);
 
@@ -88,23 +80,6 @@ Tabs.createTab = (webview, i) => {
 
   return li;
 };
-
-Tabs.writeShow = (el, mode) => {
-  Array.forEach(el.children, (el, i) => {
-    const delay = 70 * i;
-    el.style.transition =
-      'transform 200ms cubic-bezier(0.215, 0.610, 0.355, 1.000), opacity 150ms linear';
-    el.style.transitionDelay = delay + 'ms';
-    el.style.transform = cssGimbal(0, 0, 0, 0, 0, 0);
-  });
-}
-
-Tabs.writeHide = (el, mode) => {
-  Array.forEach(el.children, (el, i) => {
-    el.style.transition = 'transform 0ms linear 500ms';
-    el.style.transform = cssGimbal(200, 20, 0, 0, 0, 0);
-  });
-}
 
 Tabs.writeSelect = (el, i) => {
   selectClass(el.children, 'tab-selected', i);  
@@ -182,8 +157,8 @@ Chosen.update = (state, msg) =>
     Chosen(state.selected, state.selected) :
   state;
 
-const Webview = (url, title, color) => model({
-  url, title,
+const Webview = (url, favicon, title, color) => model({
+  url, favicon, title,
   id: url,
   color: (color || '#fff')
 });
@@ -276,9 +251,6 @@ State.write = (state, dt, frame) => {
   mount(Webviews.mount, webviewsEl, state.webviews, state.chosen.selected);
 
   if (state.mode.value === 'show-tabs-resting') {
-    // sync(Tabs.writeShow,
-    //   modified(state.mode),
-    //   tabsEl, state.mode.value);
     sync(Webviews.showTabsResting,
       newest(state.mode, state.chosen, state.coords),
       webviewsEl, state.coords.x, state.coords.y);
@@ -287,14 +259,8 @@ State.write = (state, dt, frame) => {
     sync(Webviews.showTabs,
       newest(state.mode, state.chosen),
       webviewsEl, state.chosen.selected);
-    // sync(Tabs.writeShow,
-    //   modified(state.mode),
-    //   tabsEl, state.mode.value);
   }
   else if (state.mode.value === 'show-webview') {
-    // sync(Tabs.writeHide,
-    //   modified(state.mode),
-    //   tabsEl, state.mode.value);
     sync(Webviews.showWebview,
       newest(state.mode, state.chosen),
       webviewsEl, state.chosen.selected);
@@ -308,13 +274,11 @@ const app = App({
   coords: Coords(0, 0, window.innerWidth, window.innerHeight),
   mode: Mode('show-webview'),
   chosen: Chosen(0, 0),
-  tabs: Tabs(Tabs.isImmediate),
   webviews: [
-    Webview('../demo/04.png', 'Rendi'),
-    Webview('../demo/01.png', 'Hard Graft', '#dadbd2'),
-    Webview('../demo/03.png', 'Human Co'),
-    Webview('../demo/02.png', 'House Paperweight - Sitka and Spruce', '#eee'),
-    Webview('../demo/02.png', 'Misc', '#eee')
+    Webview('../demo/04.png', '../demo/rendi.png', 'Rendi'),
+    Webview('../demo/01.png', '../demo/hardgraft.png', 'Hard Graft', '#dadbd2'),
+    Webview('../demo/03.png', '../demo/humanco.png', 'Human Co'),
+    Webview('../demo/02.png', '', 'House Paperweight - Sitka and Spruce', '#eee'),
   ]
 }, State.update, State.write);
 
