@@ -8,6 +8,7 @@ body {
   padding: 0;
   perspective: 2000px;
   perspective-origin: 20% 50%;
+  transform-style: preserve-3d;
   width: 100vw;
 }
 
@@ -96,7 +97,7 @@ body {
   padding: 0;
 }
 
-.tabs > li {
+.tab {
   border-top: 1px solid rgba(255,255,255,0.08);
   display: block;
   font-size: 14px;
@@ -109,22 +110,25 @@ body {
   white-space: nowrap;
 }
 
-.tabs > li:first-child {
+.tab:first-child {
   border-top-color: transparent;
 }
 
-.tabs > .tab-selected {
+.tab-selected {
   background: #4A90E2;
   border-top-color: transparent;
   border-radius: 4px;
   color: #fff;
 }
-.tabs > .tab-selected + li {
+.tab-selected + .tab {
   border-top-color: transparent;
 }
 
-.tabs > li > .favicon {
-  background: #ddd;
+.tab > .favicon {
+  background: #fff;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
   border-radius: 3px;
   height: 16px;
   left: 12px;
@@ -158,7 +162,7 @@ body {
   position: absolute;
   top: 0;
   width: 100vw;
-  transform-origin: 0 0 0;
+  transform-style: preserve-3d;
 }
 
 .webview {

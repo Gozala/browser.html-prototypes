@@ -2,7 +2,8 @@ const mounted = (element, isMounted) =>
   set(element, 'mounted@widget', isMounted);
 const isMounted = (element) => !!element['mounted@widget'];
 
-const cssTranslate = (x, y, z) => `translate3d(${x}px, ${y}px, ${z}px)`;
+const cssGimbal = (x, y, z, rx, ry, rz) =>
+  `translate3d(${x}px, ${y}px, ${z}px) rotateX(${rx}deg) rotateY(${ry}deg) rotateZ(${rz}deg)`;
 
 const cssUrl = (url) => url && url.length ? `url(${url})` : 'none';
 
@@ -41,6 +42,7 @@ const Tabs = {};
 Tabs.createTab = (webview, i) => {
   const favicon = document.createElement('div');
   favicon.className = 'favicon';
+  favicon.style.backgroundImage = cssUrl(webview.favicon);
 
   const text = document.createTextNode(webview.title);
 
@@ -162,22 +164,22 @@ const Webviews = {};
 Webviews.mount = (el, webviews, i, height) => {
   children(el, webviews.map(Webview.create));
   el.style.transition = 'none';
-  el.style.transform = cssTranslate(0, calcOffset(height, i), 0);
+  el.style.transform = cssGimbal(0, calcOffset(height, i), 0, 0, 0, 0);
 }
 
-Webviews.writeResting = (el, i, height) => {
+Webviews.writeResting = (el, i, width, height) => {
   el.style.transition = 'transform 600ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
-  el.style.transform = cssTranslate(0, calcOffset(height, i), -800) + ' rotateY(30deg)';  
+  el.style.transform = cssGimbal(0, calcOffset(height, i), -800, 0, 30, 0);
 }
 
-Webviews.writeActive = (el, i, height) => {
+Webviews.writeActive = (el, i, width, height) => {
   el.style.transition = 'transform 600ms cubic-bezier(0.250, 0.460, 0.450, 0.940';
-  el.style.transform = cssTranslate(0, calcOffset(height, i), -3000)  + ' rotateY(30deg)';
+  el.style.transform = cssGimbal(0, calcOffset(height, i), -3000, 0, 30, 0);
 }
 
 Webviews.writeShow = (el, i, height) => {
   el.style.transition = 'transform 400ms cubic-bezier(0.215, 0.610, 0.355, 1.000)';
-  el.style.transform = cssTranslate(0, calcOffset(height, i), 0);
+  el.style.transform = cssGimbal(0, calcOffset(height, i), 0, 0, 0, 0);
 }
 
 const State = {};
@@ -201,12 +203,12 @@ State.write = (state) => {
   if (state.mode.value === 'show-tabs-resting') {
     sync(Webviews.writeResting,
       newest(state.mode, state.chosen),
-      webviewsEl, state.chosen.cursor, state.win.height);
+      webviewsEl, state.chosen.cursor, state.win.width, state.win.height);
   }
   else if (state.mode.value === 'show-tabs') {
     sync(Webviews.writeActive,
       newest(state.mode, state.chosen),
-      webviewsEl, state.chosen.cursor, state.win.height);
+      webviewsEl, state.chosen.cursor, state.win.width, state.win.height);
   }
   else {
     sync(Webviews.writeShow,
