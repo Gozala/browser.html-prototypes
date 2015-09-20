@@ -205,11 +205,11 @@ body {
 
 .sidebar {
   align-items: center;
+  justify-content: center;
   display: flex;
   flex-flow: row wrap;
   height: 100vh;
-  position: absolute;
-  right: 10%;
+  padding-left: 40%;
   z-index: 11;
 }
 
