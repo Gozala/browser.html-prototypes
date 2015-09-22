@@ -228,7 +228,7 @@ const app = App({
     Webview('../demo/10.png', '', 'Lego Unveils Avengers set - Quartz', '#fff'),
     Webview('../demo/05.png', '../demo/rendi.png', 'Crane Brothers', '#cfebec'),
     Webview('../demo/06.png', '../demo/hardgraft.png', 'BokicaBo', '#d9aa16'),
-    Webview('../demo/11.png', '../demo/humanco.png', 'Human Co'),
+    Webview('../demo/11.png', '../demo/humanco.png', 'Bedstock - MyMusic'),
   ]
 }, State.update, State.write);
 
