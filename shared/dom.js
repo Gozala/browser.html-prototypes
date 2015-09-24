@@ -1,3 +1,15 @@
+const sets = (f, indexed, ...rest) => {
+  for (var i = 0; i < indexed.length; i++) {
+    f(indexed[i], ...rest);
+  };
+  return indexed;
+}
+
+const setStyle = (el, prop, value) => {
+  el.style[prop] = value;
+  return el;
+}
+
 const children = (parent, children) => {
   for (var i = 0; i < children.length; i++) {
     parent.appendChild(children[i]);
