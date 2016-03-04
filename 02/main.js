@@ -132,11 +132,12 @@ Webview.create = (webview, i, webviews) => {
 
   div.appendChild(Windowbar.create(webview, webviews.length));
 
-  const iframe = document.createElement('div');
+  const iframe = document.createElement('iframe');
   iframe.setAttribute('class', 'iframe');
-  // iframe.setAttribute('mozbrowser', 'mozbrowser');
-  // iframe.setAttribute('remote', 'remote');
-  iframe.style.backgroundImage = cssUrl(webview.url);
+  iframe.setAttribute('mozbrowser', 'mozbrowser');
+  iframe.setAttribute('remote', 'remote');
+  iframe.setAttribute('src', webview.url);
+  // iframe.style.backgroundImage = cssUrl(webview.url);
 
   div.appendChild(iframe);
 
@@ -225,10 +226,10 @@ const app = App({
   mode: Mode('show-webview'),
   chosen: Chosen(0, 0, true),
   webviews: [
-    Webview('../demo/10.png', '', 'Lego Unveils Avengers set - Quartz', '#fff'),
-    Webview('../demo/05.png', '../demo/rendi.png', 'Crane Brothers', '#cfebec'),
-    Webview('../demo/06.png', '../demo/hardgraft.png', 'BokicaBo', '#d9aa16'),
-    Webview('../demo/11.png', '../demo/humanco.png', 'Bedstock - MyMusic'),
+    Webview('http://qz.com/336510/lego-just-unveiled-its-3000-piece-helicarrier-from-the-avengers/', '', 'Lego Unveils Avengers set - Quartz', '#fff'),
+    Webview('http://crane-brothers.com/magazine/in-conversation', '../demo/rendi.png', 'Crane Brothers', '#cfebec'),
+    Webview('http://www.bokicabo.com/en/04/', '../demo/hardgraft.png', 'BokicaBo', '#d9aa16'),
+    Webview('http://www.bedstockfest.com', '../demo/humanco.png', 'Bedstock - MyMusic'),
   ]
 }, State.update, State.write);
 
